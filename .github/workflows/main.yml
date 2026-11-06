@@ -14,8 +14,14 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Use Preinstalled Android SDK
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_PATH
+          ls /usr/local/lib/android/sdk/
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Download Gradle Wrapper Jar
         run: |
@@ -107,7 +113,6 @@ jobs:
       - name: Build APK
         run: |
           chmod +x gradlew || true
-          # If gradlew does not exist in repo, create it from the wrapper download step
           if [ ! -f gradlew ]; then
             curl -L -o gradlew https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew
             chmod +x gradlew
@@ -118,4 +123,3 @@ jobs:
         with:
           name: coin-hunter-apk
           path: app/build/outputs/apk/debug/*.apk
-### 
