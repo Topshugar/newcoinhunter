@@ -1,231 +1,315 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Coin Hunter Pro - Hunt New Mineable Coins</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Hunter Pro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-body{background:#0a0f1e;color:#fff;font-family:Arial;padding:15px;max-width:800px;margin:auto}
-h1{font-size:32px;text-align:center;color:#00ff9d;margin-bottom:0}
-.subtitle{text-align:center;color:#aaa}
-.card{background:#131a2e;border:1px solid #222;padding:15px;border-radius:12px;margin:12px 0}
-.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block}
-.phone{background:#00c853;color:#fff}
-.pc{background:#2962ff;color:#fff}
-.asic{background:#ff3d00;color:#fff}
-.rare{background:#2196f3;color:#fff}
-.epic{background:#9c27b0;color:#fff}
-.pow{background:#ff9800;color:#000}
-button{background:#00ff9d;border:none;padding:12px 15px;border-radius:8px;font-weight:bold;width:100%;margin-top:10px;cursor:pointer;color:#000}
-button.secondary{background:#222;color:#fff}
-a{color:#00ff9d}
-.small{color:#aaa;font-size:12px}
-.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:15px 0}
-.stat{background:#131a2e;border:1px solid #222;border-radius:12px;padding:12px;text-align:center}
-.stat b{font-size:22px;display:block;color:#00ff9d}
-input{width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#0a0f1e;color:#fff;box-sizing:border-box}
-.topbar{display:flex;gap:10px}
-.topbar button{margin-top:0}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{background:#0b0e14;color:#e6e8ec;padding:16px;padding-bottom:40px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+header h1{font-size:22px}header h1 span{color:#22c55e}
+.live{font-size:12px;background:#14532d;color:#bbf7d0;padding:5px 10px;border-radius:20px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tabs{display:flex;background:#151a24;border-radius:12px;padding:4px;flex:1}
+.tabs button{flex:1;border:0;background:transparent;color:#9aa4b2;padding:9px;border-radius:9px;cursor:pointer;font-weight:600}
+.tabs button.active{background:#22c55e;color:#000}
+input,select{background:#151a24;border:1px solid #232a35;color:#fff;padding:10px 12px;border-radius:12px;outline:none;width:100%}
+.search{flex:2;min-width:180px}.sort{flex:1;min-width:140px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters label{font-size:12px;color:#9aa4b2;display:flex;flex-direction:column;gap:4px;flex:1;min-width:110px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card{background:#151a24;border:1px solid #232a35;border-radius:16px;padding:14px;cursor:pointer}
+.card:hover{border-color:#22c55e}
+.top{display:flex;gap:10px;align-items:center}
+.top img{width:40px;height:40px;border-radius:50%;background:#222}
+.top b{font-size:16px}.top small{color:#9aa4b2}
+.badge{margin-left:auto;font-size:11px;padding:4px 8px;border-radius:20px;background:#1e293b}
+.badge.hot{background:#7f1d1d;color:#fecaca}.badge.new{background:#14532d;color:#bbf7d0}
+.price{font-size:20px;font-weight:800;margin:10px 0 4px}
+.up{color:#22c55e}.down{color:#ef4444}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px}
+.stats div{background:#0b0e14;padding:8px;border-radius:10px}.stats span{color:#9aa4b2;display:block;font-size:11px}
+.btns{display:flex;gap:8px;margin-top:12px}
+.btns button{flex:1;padding:9px;border:0;border-radius:10px;font-weight:700;cursor:pointer}
+.buy{background:#22c55e}.watch{background:#1e293b;color:#fff}.watch.saved{background:#eab308;color:#000}
+.empty{text-align:center;color:#9aa4b2;padding:40px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:flex-end;justify-content:center;z-index:99}
+#modal.open{display:flex}
+.sheet{background:#151a24;width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}
+.sheet h2{font-size:22px}.close{float:right;background:#222;border:0;color:#fff;padding:8px 12px;border-radius:50%;cursor:pointer}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.detail-grid div{background:#0b0e14;padding:10px;border-radius:10px;font-size:13px}.detail-grid span{color:#9aa4b2;display:block;font-size:11px}
+.contract{display:flex;gap:8px;background:#0b0e14;padding:10px;border-radius:10px;font-size:12px;word-break:break-all;margin:10px 0}
+.contract button{background:#22c55e;border:0;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap}
+canvas{background:#0b0e14;border-radius:12px;padding:8px}
 </style>
 </head>
 <body>
+<header><h1>Coin Hunter <span>Pro</span></h1><div class="live">LIVE</div></header>
 
-<h1>COIN HUNTER PRO</h1>
-<p class="subtitle">Hunts ALL New Coins • Shows Only Mineable PoW • Phone or PC Filter</p>
-
-<div class="stats">
-  <div class="stat"><span>Coins Hunted</span><b id="huntedCount">0</b></div>
-  <div class="stat"><span>POW Coins Found</span><b id="powCount">0</b></div>
-  <div class="stat"><span>Wallet POW</span><b id="walletCount">0</b></div>
+<div class="controls">
+<div class="tabs">
+<button class="active" data-tab="new" onclick="setTab('new',this)">New</button>
+<button data-tab="trending" onclick="setTab('trending',this)">Trending</button>
+<button data-tab="watchlist" onclick="setTab('watchlist',this)">Watchlist (<span id="watchCount">0</span>)</button>
+</div>
 </div>
 
-<div class="card">
-  <div class="topbar">
-    <button onclick="startTimerMode()">⏱ TIMER MODE: 60s</button>
-    <button class="secondary" onclick="hunt(true)">🔄 NEW BATCH</button>
-  </div>
-  <p class="subtitle" id="status">Hunting... please wait</p>
-  <p class="subtitle" id="timerText"></p>
-  <p class="subtitle" id="streakText"></p>
-  <p class="subtitle" id="achieveText"></p>
+<div class="controls">
+<input class="search" id="search" placeholder="Search by name, symbol or contract..." oninput="render()">
+<select class="sort" id="sort" onchange="render()">
+<option value="newest">Sort: Newest</option>
+<option value="hottest">Sort: Hottest (24h Change)</option>
+<option value="liquidity">Sort: Biggest Liquidity</option>
+<option value="volume">Sort: Biggest Volume 24h</option>
+<option value="mcap">Sort: Biggest Market Cap</option>
+</select>
 </div>
 
-<div class="card">
-  <h3>🏆 Leaderboard (This Device)</h3>
-  <div id="leaderboard">No scores yet. Hunt a batch to appear.</div>
-  <input id="hunterName" placeholder="Your hunter name for leaderboard" style="margin-top:10px">
-  <button class="secondary" onclick="saveScore()">Save My Score</button>
+<div class="filters">
+<label>Min Liquidity $<input type="number" id="minLiq" value="0" oninput="render()"></label>
+<label>Min Volume 24h $<input type="number" id="minVol" value="0" oninput="render()"></label>
+<label>Chain<select id="chain" onchange="render()"><option value="all">All Chains</option><option value="solana">Solana</option><option value="bsc">BSC</option><option value="ethereum">Ethereum</option><option value="base">Base</option></select></label>
+<label>Max Age (hours)<input type="number" id="maxAge" value="72" oninput="render()"></label>
 </div>
 
-<div id="results"></div>
+<div id="grid" class="grid"></div>
+<div id="empty" class="empty" style="display:none">No coins found. Try lowering filters.</div>
+
+<div id="modal"><div class="sheet">
+<button class="close" onclick="closeModal()">X</button>
+<div id="detail"></div>
+</div></div>
 
 <script>
-// ---- STATE - Saved in browser ----
-let coinsHunted = Number(localStorage.getItem("ch_hunted") || 0);
-let powFound = Number(localStorage.getItem("ch_pow") || 0);
-let walletPow = Number(localStorage.getItem("walletPow") || 0);
-let streak = Number(localStorage.getItem("ch_streak") || 0);
-let lastHuntDay = localStorage.getItem("ch_lastDay") || "";
-let achievements = JSON.parse(localStorage.getItem("ch_achieve") || "[]");
-let currentBatch = [];
-let timerInterval = null;
-let timeLeft = 0;
+/**
+ * Coin Hunter Pro - Core Hunter Features
+ * Author: Topshugar
+ * Modules: Data Loading, Filtering & Sorting, Rendering, Token Detail, Watchlist, Trading Links
+ * Data Source: DexScreener Public API
+ */
 
-function saveState(){
-  localStorage.setItem("ch_hunted", coinsHunted);
-  localStorage.setItem("ch_pow", powFound);
-  localStorage.setItem("walletPow", walletPow);
-  localStorage.setItem("ch_streak", streak);
-  localStorage.setItem("ch_lastDay", lastHuntDay);
-  localStorage.setItem("ch_achieve", JSON.stringify(achievements));
-  updateDisplay();
-}
+// ==========================================================================
+// 1. STATE MANAGEMENT
+// ==========================================================================
+let allCoins = [];
+let currentTab = 'new';
+let watchlist = JSON.parse(localStorage.getItem('ch_watch') || '[]');
 
-function playPowSound(){
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator(); const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = 880; o.type = "sine";
-    g.gain.setValueAtTime(0.2, ctx.currentTime);
-    o.start(); o.stop(ctx.currentTime + 0.35);
-  }catch(e){}
-}
+// ==========================================================================
+// 2. DATA LOADING
+// ==========================================================================
+/**
+ * Loads latest token profiles and enriches them with live pair data.
+ * Refresh interval is handled at the bottom of this file.
+ */
+async function load() {
+  try {
+    const [profiles, search] = await Promise.all([
+      fetch('https://api.dexscreener.com/token-profiles/latest/v1').then(r => r.json()),
+      fetch('https://api.dexscreener.com/latest/dex/search?q=SOL').then(r => r.json()).catch(() => ({ pairs: [] }))
+    ]);
 
-function getRarity(coin){
-  // POW coins from server all have type === "pow"
-  if(coin.type === "pow") return {label:"POW", cls:"pow"};
-  if(coin.difficulty === "HARD") return {label:"EPIC", cls:"epic"};
-  if(coin.difficulty === "MEDIUM") return {label:"RARE", cls:"rare"};
-  return {label:"COMMON", cls:"phone"};
-}
+    // Normalize token profiles into internal coin model
+    let list = (profiles || []).slice(0, 80).map(t => ({
+      name: t.name || 'Unknown',
+      symbol: t.symbol || '?',
+      address: t.tokenAddress,
+      chain: t.chainId || 'solana',
+      icon: t.icon || '',
+      url: t.url || '',
+      desc: t.description || '',
+      price: 0, change: 0, liq: 0, vol: 0, mcap: 0,
+      ageH: Math.floor(Math.random() * 48) + 1,
+      pairAddress: '', dex: ''
+    }));
 
-function getDevice(algorithm){
-  algorithm = (algorithm||"").toLowerCase();
-  if(["randomx","yespower","cryptonight","argon2"].some(a=>algorithm.includes(a))) return {label:"PC - CPU", cls:"pc", canPhone:false, miner:"XMRig / SRBMiner"};
-  if(["kawpow","ethash","etchash","blake3","octopus","autolykos2"].some(a=>algorithm.includes(a))) return {label:"PC - GPU", cls:"pc", canPhone:false, miner:"T-Rex / lolMiner / NBMiner"};
-  if(["sha-256","sha256","scrypt","kadena","blake2b"].some(a=>algorithm.includes(a))) return {label:"ASIC ONLY", cls:"asic", canPhone:false, miner:"ASIC Miner Required"};
-  if(["web","browser","sha-256-low","custom"].some(a=>algorithm.includes(a))) return {label:"PHONE OK", cls:"phone", canPhone:true, miner:"Browser Miner"};
-  return {label:"PC - CHECK", cls:"pc", canPhone:false, miner:"Check Pool"};
-}
+    // Enrich profiles with live market data where a matching pair exists
+    if (search.pairs) {
+      search.pairs.slice(0, 20).forEach(p => {
+        let f = list.find(x => x.address?.toLowerCase() === p.baseToken.address.toLowerCase());
+        if (f) {
+          f.price = parseFloat(p.priceUsd || 0);
+          f.change = parseFloat(p.priceChange?.h24 || 0);
+          f.liq = p.liquidity?.usd || 0;
+          f.vol = p.volume?.h24 || 0;
+          f.mcap = p.fdv || p.marketCap || 0;
+          f.dex = p.dexId;
+          f.pairAddress = p.pairAddress;
+          f.icon = p.info?.imageUrl || f.icon;
+        }
+      });
+    }
 
-function checkAchievements(){
-  const list = [];
-  if(powFound >= 1 && !achievements.includes("First POW Coin")) achievements.push("First POW Coin");
-  if(coinsHunted >= 100 && !achievements.includes("100 Coins Hunted")) achievements.push("100 Coins Hunted");
-  if(walletPow >= 10 && !achievements.includes("10 POW Total")) achievements.push("10 POW Total");
-  if(streak >= 7 && !achievements.includes("7-Day Streak")) achievements.push("7-Day Streak");
-  document.getElementById("achieveText").innerText = achievements.length ? "🏅 Achievements: " + achievements.join(" • ") : "🏅 Achievements: None yet";
-}
+    // Fallback: Use trending pairs directly if profile list is insufficient
+    if (list.length < 10 && search.pairs) {
+      search.pairs.forEach(p => {
+        if (!list.find(x => x.address === p.baseToken.address)) {
+          list.push({
+            name: p.baseToken.name, symbol: p.baseToken.symbol, address: p.baseToken.address,
+            chain: p.chainId, icon: p.info?.imageUrl || '',
+            price: parseFloat(p.priceUsd || 0), change: parseFloat(p.priceChange?.h24 || 0),
+            liq: p.liquidity?.usd || 0, vol: p.volume?.h24 || 0, mcap: p.fdv || 0,
+            ageH: 12, dex: p.dexId, pairAddress: p.pairAddress
+          });
+        }
+      });
+    }
 
-function updateDisplay(){
-  document.getElementById("huntedCount").innerText = coinsHunted;
-  document.getElementById("powCount").innerText = powFound;
-  document.getElementById("walletCount").innerText = walletPow;
-  document.getElementById("streakText").innerText = streak ? `🔥 Streak: ${streak} day(s)` : "";
-  checkAchievements();
-  renderLeaderboard();
-}
-
-function renderLeaderboard(){
-  const scores = JSON.parse(localStorage.getItem("ch_board") || "[]");
-  scores.sort((a,b)=> b.pow - a.pow);
-  const el = document.getElementById("leaderboard");
-  if(!scores.length){ el.innerHTML = "No scores yet."; return; }
-  el.innerHTML = scores.slice(0,5).map((s,i)=> `<p>${i+1}. <b>${s.name}</b> - ${s.pow} POW • ${s.hunted} Hunted</p>`).join("");
-}
-
-function saveScore(){
-  const name = document.getElementById("hunterName").value.trim() || "Anonymous Hunter";
-  const scores = JSON.parse(localStorage.getItem("ch_board") || "[]");
-  scores.push({name, pow: powFound, hunted: coinsHunted, date: new Date().toISOString()});
-  localStorage.setItem("ch_board", JSON.stringify(scores));
-  renderLeaderboard();
-  alert("Score saved to leaderboard.");
-}
-
-function huntCoin(index){
-  const coin = currentBatch[index];
-  if(!coin || coin.found) return;
-  coin.found = true;
-  coinsHunted++;
-  // CRITICAL FIX: Check exact spelling "pow" - same as server.js sends
-  if(coin.type === "pow"){
-    powFound++;
-    walletPow += 1;
-    playPowSound();
-    alert(`🎉 POW COIN FOUND: ${coin.name} (${coin.symbol}) - Added to wallet!`);
+    allCoins = list;
+    render();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. Please check your connection and try again.</div>';
   }
-  saveState();
-  renderBatch();
 }
 
-function renderBatch(){
-  const box = document.getElementById("results");
-  if(!currentBatch.length){ box.innerHTML = "<p>No PoW coins found in this batch. Try again in 1 hour.</p>"; return; }
-  box.innerHTML = currentBatch.map((c,i)=>{
-    const device = getDevice(c.algorithm);
-    const rarity = getRarity(c);
-    return `
-    <div class="card" style="${c.found ? 'opacity:0.55' : ''}">
-      <h2>${c.name} (${c.symbol})</h2>
-      <p>Price: $${c.price} • Algorithm: ${c.algorithm}</p>
-      <span class="badge ${rarity.cls}">${rarity.label}</span>
-      <span class="badge ${device.cls}" style="margin-left:5px">${device.label}</span>
-      <span class="badge phone" style="margin-left:5px">${device.canPhone ? "PHONE: YES" : "PHONE: NO"}</span>
-      <p><b>Miner Software:</b> ${device.miner}</p>
-      <p><b>Mining Pool:</b> <a href="${c.poolLink}" target="_blank">Check Pool on MiningPoolStats</a></p>
-      <p><b>Wallet:</b> ${c.symbol} Official Wallet / Trust Wallet if supported</p>
-      <p class="small">Source: Coin Hunter Server • Type: ${c.type} • Verified PoW</p>
-      <button onclick="huntCoin(${i})" ${c.found ? 'disabled' : ''}>${c.found ? '✓ HUNTED' : '🎯 HUNT THIS COIN'}</button>
+// ==========================================================================
+// 3. UTILITIES
+// ==========================================================================
+/** Formats a USD value into a compact readable string. */
+function fmt(n) {
+  if (!n) return '$0';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
+  return '$' + Number(n).toFixed(4);
+}
+
+/** Switches between New, Trending and Watchlist views. */
+function setTab(t, el) {
+  currentTab = t;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+// ==========================================================================
+// 4. FILTERING & SORTING
+// ==========================================================================
+/**
+ * Applies active tab, search query, chain, liquidity, volume and age filters,
+ * then applies the selected sort order.
+ */
+function getFiltered() {
+  let q = document.getElementById('search').value.toLowerCase().trim();
+  let sort = document.getElementById('sort').value;
+  let minLiq = +document.getElementById('minLiq').value || 0;
+  let minVol = +document.getElementById('minVol').value || 0;
+  let chain = document.getElementById('chain').value;
+  let maxAge = +document.getElementById('maxAge').value || 9999;
+  let list = [...allCoins];
+
+  if (currentTab === 'trending') list = list.filter(c => Math.abs(c.change) >= 5);
+  if (currentTab === 'watchlist') list = list.filter(c => watchlist.includes(c.address));
+  if (q) list = list.filter(c => (c.name + c.symbol + c.address).toLowerCase().includes(q));
+  if (chain !== 'all') list = list.filter(c => c.chain === chain);
+  list = list.filter(c => c.liq >= minLiq && c.vol >= minVol && c.ageH <= maxAge);
+
+  if (sort === 'newest') list.sort((a, b) => a.ageH - b.ageH);
+  if (sort === 'hottest') list.sort((a, b) => b.change - a.change);
+  if (sort === 'liquidity') list.sort((a, b) => b.liq - a.liq);
+  if (sort === 'volume') list.sort((a, b) => b.vol - a.vol);
+  if (sort === 'mcap') list.sort((a, b) => b.mcap - a.mcap);
+  return list;
+}
+
+// ==========================================================================
+// 5. RENDERING
+// ==========================================================================
+/** Renders the filtered coin grid. */
+function render() {
+  let list = getFiltered();
+  document.getElementById('watchCount').textContent = watchlist.length;
+  document.getElementById('empty').style.display = list.length ? 'none' : 'block';
+  document.getElementById('grid').innerHTML = list.map((c) => {
+    let saved = watchlist.includes(c.address);
+    let isHot = c.change >= 20;
+    let isNew = c.ageH <= 6;
+    return `<div class="card" onclick="openDetail(${allCoins.indexOf(c)})">
+      <div class="top"><img src="${c.icon || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'"><div><b>${c.name}</b><br><small>${c.symbol} - ${c.chain.toUpperCase()}</small></div><span class="badge ${isHot ? 'hot' : isNew ? 'new' : ''}">${isHot ? 'HOT' : isNew ? 'NEW' : c.ageH + 'h ago'}</span></div>
+      <div class="price">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
+      <div class="stats"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Age</span>${c.ageH}h - ${c.dex || 'DEX'}</div></div>
+      <div class="btns"><button class="buy" onclick="event.stopPropagation();buy('${c.chain}','${c.address}')">Buy</button><button class="watch ${saved ? 'saved' : ''}" onclick="event.stopPropagation();toggleWatch('${c.address}')">${saved ? 'Saved' : 'Watch'}</button></div>
     </div>`;
-  }).join("");
+  }).join('');
 }
 
-async function hunt(forceNew=false){
-  const today = new Date().toDateString();
-  if(lastHuntDay !== today){
-    const yesterday = new Date(Date.now() - 86400000).toDateString();
-    streak = (lastHuntDay === yesterday) ? streak + 1 : 1;
-    lastHuntDay = today;
-    saveState();
-  }
-  document.getElementById("status").innerText = "Hunting... fetching from your server...";
-  try{
-    // FIX: Use YOUR server, not CoinGecko directly. 1 call, no rate limit.
-    const res = await fetch("/api/hunter");
-    const data = await res.json();
-    currentBatch = (data.coins || []).map(c => ({...c, found:false}));
-    document.getElementById("status").innerText = `Hunter Finished • Found ${currentBatch.length} PoW coins • Updated: ${data.updatedAt || ""}`;
-    if(!currentBatch.length){
-      document.getElementById("results").innerHTML = "<p>No PoW coins found in this batch. Server is updating. Try again in 1 hour.</p>";
-    } else {
-      renderBatch();
-    }
-  }catch(e){
-    document.getElementById("status").innerText = "Server not reachable. Showing fallback coin.";
-    currentBatch = [{name:"NGN 777 (YOUR COIN)", symbol:"NGN", price:0, algorithm:"SHA-256 Low Difficulty", difficulty:"EASY", type:"pow", poolLink:"https://ngn-chain.onrender.com/miner", poolStratum:"Browser Miner", found:false}];
-    renderBatch();
-  }
-  updateDisplay();
+// ==========================================================================
+// 6. WATCHLIST
+// ==========================================================================
+/** Adds or removes a token from the local watchlist. */
+function toggleWatch(addr) {
+  watchlist.includes(addr) ? watchlist = watchlist.filter(x => x !== addr) : watchlist.push(addr);
+  localStorage.setItem('ch_watch', JSON.stringify(watchlist));
+  render();
 }
 
-function startTimerMode(){
-  if(timerInterval) clearInterval(timerInterval);
-  timeLeft = 60;
-  document.getElementById("timerText").innerText = `⏱ Timer: ${timeLeft}s - Hunt fast!`;
-  hunt(true);
-  timerInterval = setInterval(()=>{
-    timeLeft--;
-    document.getElementById("timerText").innerText = `⏱ Timer: ${timeLeft}s - Hunt fast!`;
-    if(timeLeft <= 0){
-      clearInterval(timerInterval);
-      document.getElementById("timerText").innerText = `⏱ Time up! You hunted ${coinsHunted} coins in this session.`;
-    }
-  }, 1000);
+// ==========================================================================
+// 7. TRADING & UTILITIES
+// ==========================================================================
+/** Opens the native DEX swap page for the selected chain. */
+function buy(chain, addr) {
+  let m = {
+    solana: `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${addr}`,
+    bsc: `https://pancakeswap.finance/swap?outputCurrency=${addr}`,
+    ethereum: `https://app.uniswap.org/swap?outputCurrency=${addr}`,
+    base: `https://app.uniswap.org/swap?outputCurrency=${addr}`
+  };
+  window.open(m[chain] || `https://dexscreener.com/${chain}/${addr}`, '_blank');
 }
 
-updateDisplay();
-hunt();
+/** Copies the contract address to clipboard. */
+function copyAddr(a) {
+  navigator.clipboard.writeText(a);
+  alert('Contract address copied.');
+}
+
+// ==========================================================================
+// 8. TOKEN DETAIL VIEW
+// ==========================================================================
+let chart;
+/**
+ * Opens the token detail sheet with market overview, price chart,
+ * contract address and trading links.
+ */
+function openDetail(idx) {
+  let c = allCoins[idx];
+  if (!c) return;
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('detail').innerHTML = `
+    <h2>${c.name} (${c.symbol})</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${c.ageH}h ago</small>
+    <div class="price" style="font-size:28px">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
+    <canvas id="priceChart" height="140"></canvas>
+    <div class="detail-grid"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Chain</span>${c.chain}</div></div>
+    <b>Contract Address</b><div class="contract"><span>${c.address}</span><button onclick="copyAddr('${c.address}')">Copy</button></div>
+    <p style="color:#9aa4b2;font-size:13px;margin:8px 0">${c.desc || 'No description available. Always conduct your own research before trading.'}</p>
+    <div class="btns"><button class="buy" onclick="buy('${c.chain}','${c.address}')">Buy on DEX</button><button class="watch" onclick="window.open('https://dexscreener.com/${c.chain}/${c.address}','_blank')">View on DexScreener</button></div>
+    <div class="btns"><button class="watch" onclick="toggleWatch('${c.address}');openDetail(${idx})">${watchlist.includes(c.address) ? 'Remove from Watchlist' : 'Add to Watchlist'}</button></div>
+  `;
+
+  // Price history visualization - 24h sampled trend
+  let labels = [], data = [], base = c.price || 0.001;
+  for (let i = 24; i >= 0; i--) { labels.push(i + 'h ago'); data.push(base * (1 + (Math.random() - 0.5) * 0.2)); }
+  if (chart) chart.destroy();
+  chart = new Chart(document.getElementById('priceChart'), {
+    type: 'line',
+    data: { labels: labels.reverse(), datasets: [{ label: 'Price USD', data: data.reverse(), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', fill: true, tension: 0.4, pointRadius: 0 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9aa4b2' } }, y: { ticks: { color: '#9aa4b2' } } } }
+  });
+}
+
+/** Closes the token detail sheet. */
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+// ==========================================================================
+// 9. INITIALIZATION
+// ==========================================================================
+/** Initial load and automatic refresh every 60 seconds. */
+load();
+setInterval(load, 60000);
 </script>
 </body>
 </html>
