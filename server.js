@@ -1,76 +1,77 @@
 /**
-  * Coin Hunter Pro - Server
-  * Project: newcoinhunter
-  * Entry File: hunter.html (in main root)
-  * Overview: Serves hunter.html and proxies market data APIs
-  * to avoid CORS issues and improve reliability.
+ * Coin Hunter Pro - Server (Render Ready)
+ * Project: newcoinhunter
+ * Entry File: hunter.html
  */
 
 const express = require('express');
 const path = require('path');
 
 const app = express();
+// Render gives you a PORT, you MUST use it. Do not hardcode 3000.
 const PORT = process.env.PORT || 3000;
-
-// Config: Main HTML file in the root of newcoinhunter repo.
 const HTML_FILE = 'hunter.html';
 
-// Middleware: Log requests for easy debugging.
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
-  next();
-});
+app.use(express.json());
 
-// Health Check: Confirm server is running.
+// Health Check - Test this first on Render
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', app: 'Coin Hunter Pro', repo: 'newcoinhunter', file: HTML_FILE });
+  res.json({ status: 'ok', app: 'Coin Hunter Pro', file: HTML_FILE });
 });
 
-// API Proxy: DexScreener token profiles - latest tokens.
+// API Proxy: DexScreener profiles
 app.get('/api/tokens', async (req, res) => {
   try {
-    const r = await fetch('https://api.dexscreener.com/token-profiles/latest/v1');
+    const r = await fetch('https://api.dexscreener.com/token-profiles/latest/v1', {
+      headers: { 'User-Agent': 'CoinHunterPro/1.0' }
+    });
+    if (!r.ok) throw new Error('DexScreener status ' + r.status);
     res.json(await r.json());
   } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch DexScreener profiles' });
+    console.error('API /tokens error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch DexScreener profiles', detail: e.message });
   }
 });
 
-// API Proxy: DexScreener token pairs - real price, liquidity, volume and creation time.
+// API Proxy: DexScreener pairs
 app.get('/api/pairs/:address', async (req, res) => {
   try {
-    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${req.params.address}`);
+    const r = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${req.params.address}`, {
+      headers: { 'User-Agent': 'CoinHunterPro/1.0' }
+    });
+    if (!r.ok) throw new Error('DexScreener status ' + r.status);
     res.json(await r.json());
   } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch token pairs' });
+    console.error('API /pairs error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch pairs' });
   }
 });
 
-// API Proxy: GeckoTerminal OHLCV - real 24h chart data.
+// API Proxy: GeckoTerminal chart
 app.get('/api/chart/:network/:pool', async (req, res) => {
   try {
     const { network, pool } = req.params;
     const r = await fetch(`https://api.geckoterminal.com/api/v2/networks/${network}/pools/${pool}/ohlcv/hour?aggregate=1&limit=24`, {
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json', 'User-Agent': 'CoinHunterPro/1.0' }
     });
+    if (!r.ok) throw new Error('Gecko status ' + r.status);
     res.json(await r.json());
   } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch chart data' });
+    console.error('API /chart error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch chart' });
   }
 });
 
-// Main Route: Serve hunter.html from repo root.
+// Main Route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, HTML_FILE));
 });
 
-// Fallback: Serve hunter.html for any other route.
-app.get('*', (req, res) => {
+// Fallback - Render / Express 5 safe version (do NOT use app.get('*'))
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, HTML_FILE));
 });
 
-// Startup: Start server on configured port.
-app.listen(PORT, () => {
-  console.log(`Coin Hunter Pro running on http://localhost:${PORT}`);
-  console.log(`Serving file: ${HTML_FILE}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Coin Hunter Pro running on port ${PORT}`);
 });
