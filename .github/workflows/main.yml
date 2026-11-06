@@ -8,21 +8,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
       - run: npm install -g @bubblewrap/cli
-      - name: Tell Bubblewrap where the JDK is
+
+      - name: Tell Bubblewrap where JDK and SDK are
         run: |
           mkdir -p ~/.bubblewrap
-          echo "{\"jdkPath\": \"$JAVA_HOME\"}" > ~/.bubblewrap/config.json
+          echo "{\"jdkPath\": \"$JAVA_HOME\", \"androidSdkPath\": \"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
           cat ~/.bubblewrap/config.json
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls $ANDROID_HOME
+
       - name: Build APK
-        run: printf 'n\n' | npx @bubblewrap/cli build --skipSigning --skipPwaValidation
+        run: printf 'n\n%s\n' "$ANDROID_HOME" | npx @bubblewrap/cli build --skipSigning --skipPwaValidation
+
       - uses: actions/upload-artifact@v4
         with:
           name: coin-hunter-apk
