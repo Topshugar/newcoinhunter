@@ -48,8 +48,8 @@ jobs:
 
           cat > build.gradle <<'EOF'
           buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies { classpath 'com.android.application:8.1.4' }
+            repositories { google(); mavenCentral(); gradlePluginPortal() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
@@ -112,11 +112,10 @@ jobs:
 
       - name: Build APK
         run: |
-          chmod +x gradlew || true
           if [ ! -f gradlew ]; then
             curl -L -o gradlew https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradlew
-            chmod +x gradlew
           fi
+          chmod +x gradlew
           ./gradlew :app:assembleDebug
 
       - uses: actions/upload-artifact@v4
