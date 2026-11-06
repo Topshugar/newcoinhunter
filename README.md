@@ -147,6 +147,6 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 ## Author
 
-Built by *Topshugar*
+Built by **Topshugar**
 
 For issues, open an https://github.com/Topshugar/newcoinhunter/issues in this repo.
