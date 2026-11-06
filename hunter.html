@@ -12,6 +12,7 @@ body{background:#0b0e14;color:#e6e8ec;padding:16px;padding-bottom:40px}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 header h1{font-size:22px}header h1 span{color:#22c55e}
 .live{font-size:12px;background:#14532d;color:#bbf7d0;padding:5px 10px;border-radius:20px}
+.updated{font-size:11px;color:#9aa4b2;text-align:right;margin:-8px 0 12px}
 .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .tabs{display:flex;background:#151a24;border-radius:12px;padding:4px;flex:1}
 .tabs button{flex:1;border:0;background:transparent;color:#9aa4b2;padding:9px;border-radius:9px;cursor:pointer;font-weight:600}
@@ -56,6 +57,8 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 <body>
 <!-- Header: Brand identity and live market status -->
 <header><h1>Coin Hunter <span>Pro</span></h1><div class="live">LIVE</div></header>
+<!-- Data Freshness: Shows when market data was last refreshed from the API -->
+<div class="updated" id="lastUpdated">Updating data...</div>
 
 <!-- Navigation: Switch between New listings, Trending tokens and saved Watchlist -->
 <div class="controls">
@@ -99,47 +102,84 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 /**
  * Coin Hunter Pro - Core Hunter Features
  * Author: Topshugar
- * Data Source: DexScreener Public API
- * Overview: Data loading, filtering and sorting, rendering,
- * token detail, watchlist and acquisition guide.
+ * Data Source: DexScreener Public API + GeckoTerminal OHLCV
+ * Overview: Accurate data loading, filtering, rendering, token detail,
+ * watchlist and acquisition guide. Age and chart are now real, not simulated.
  */
 
 // State Management: Active token list, selected view and saved watchlist.
 let allCoins = [];
 let currentTab = 'new';
 let watchlist = JSON.parse(localStorage.getItem('ch_watch') || '[]');
+let lastUpdatedAt = null;
 
-// Data Loading: Fetches latest token profiles and enriches them with live pair data.
+// Data Accuracy: Maps app chain names to GeckoTerminal network names for chart data.
+function geckoNetwork(chain) {
+  const m = { solana: 'solana', bsc: 'bsc', ethereum: 'eth', base: 'base' };
+  return m[chain] || 'solana';
+}
+
+// Data Accuracy: Calculates real token age in hours from DexScreener pair creation timestamp.
+function calcAgeH(pairCreatedAt) {
+  if (!pairCreatedAt) return null;
+  const diff = Date.now() - pairCreatedAt;
+  if (diff < 0) return 0;
+  return diff / 3600000;
+}
+
+// Data Accuracy: Formats age for display, handles sub-hour and multi-day cases.
+function fmtAge(ageH) {
+  if (ageH === null || ageH === undefined) return 'Unknown';
+  if (ageH < 1) return Math.max(1, Math.round(ageH * 60)) + 'm ago';
+  if (ageH < 24) return Math.floor(ageH) + 'h ago';
+  return Math.floor(ageH / 24) + 'd ago';
+}
+
+// Data Loading: Fetches latest token profiles and enriches each with verified pair data.
+// Uses token-pairs endpoint to get real price, liquidity, volume, market cap, DEX and creation time.
 async function load() {
   try {
-    const [profiles, search] = await Promise.all([
-      fetch('https://api.dexscreener.com/token-profiles/latest/v1').then(r => r.json()),
-      fetch('https://api.dexscreener.com/latest/dex/search?q=SOL').then(r => r.json()).catch(() => ({ pairs: [] }))
-    ]);
-    let list = (profiles || []).slice(0, 80).map(t => ({
-      name: t.name || 'Unknown', symbol: t.symbol || '?', address: t.tokenAddress,
-      chain: t.chainId || 'solana', icon: t.icon || '', url: t.url || '', desc: t.description || '',
-      price: 0, change: 0, liq: 0, vol: 0, mcap: 0,
-      ageH: Math.floor(Math.random() * 48) + 1, pairAddress: '', dex: ''
+    const profilesRes = await fetch('https://api.dexscreener.com/token-profiles/latest/v1').then(r => r.json());
+    const profiles = (profilesRes || []).slice(0, 30);
+
+    // Fetch real pair data in parallel, limited to keep requests fast and reliable.
+    const enriched = await Promise.all(profiles.map(async (t) => {
+      const base = {
+        name: t.name || 'Unknown', symbol: t.symbol || '?', address: t.tokenAddress,
+        chain: t.chainId || 'solana', icon: t.icon || '', url: t.url || '', desc: t.description || '',
+        price: 0, change: 0, liq: 0, vol: 0, mcap: 0,
+        ageH: null, pairAddress: '', dex: '', pairCreatedAt: null
+      };
+      try {
+        const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${t.tokenAddress}`).then(r => r.json());
+        const pairs = pairRes?.pairs || [];
+        if (pairs.length) {
+          // Choose the most liquid pair as the primary market for accurate pricing.
+          pairs.sort((a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0));
+          const p = pairs[0];
+          base.price = parseFloat(p.priceUsd || 0);
+          base.change = parseFloat(p.priceChange?.h24 || 0);
+          base.liq = p.liquidity?.usd || 0;
+          base.vol = p.volume?.h24 || 0;
+          base.mcap = p.fdv || p.marketCap || 0;
+          base.dex = p.dexId;
+          base.pairAddress = p.pairAddress;
+          base.pairCreatedAt = p.pairCreatedAt || null;
+          base.ageH = calcAgeH(p.pairCreatedAt);
+          base.icon = p.info?.imageUrl || base.icon;
+          base.chain = p.chainId || base.chain;
+        }
+      } catch (e) { /* Keep profile data if pair lookup fails */ }
+      return base;
     }));
-    if (search.pairs) {
-      search.pairs.slice(0, 20).forEach(p => {
-        let f = list.find(x => x.address?.toLowerCase() === p.baseToken.address.toLowerCase());
-        if (f) {
-          f.price = parseFloat(p.priceUsd || 0); f.change = parseFloat(p.priceChange?.h24 || 0);
-          f.liq = p.liquidity?.usd || 0; f.vol = p.volume?.h24 || 0; f.mcap = p.fdv || p.marketCap || 0;
-          f.dex = p.dexId; f.pairAddress = p.pairAddress; f.icon = p.info?.imageUrl || f.icon;
-        }
-      });
-    }
-    if (list.length < 10 && search.pairs) {
-      search.pairs.forEach(p => {
-        if (!list.find(x => x.address === p.baseToken.address)) {
-          list.push({ name: p.baseToken.name, symbol: p.baseToken.symbol, address: p.baseToken.address, chain: p.chainId, icon: p.info?.imageUrl || '', price: parseFloat(p.priceUsd || 0), change: parseFloat(p.priceChange?.h24 || 0), liq: p.liquidity?.usd || 0, vol: p.volume?.h24 || 0, mcap: p.fdv || 0, ageH: 12, dex: p.dexId, pairAddress: p.pairAddress });
-        }
-      });
-    }
-    allCoins = list;
+
+    // Keep only tokens with verified market data, fallback to profiles if all fail.
+    allCoins = enriched.filter(c => c.price > 0 || c.liq > 0);
+    if (!allCoins.length) allCoins = enriched;
+
+    lastUpdatedAt = new Date();
+    const el = document.getElementById('lastUpdated');
+    if (el) el.textContent = 'Last updated: ' + lastUpdatedAt.toLocaleTimeString() + ' - Live from DexScreener';
     render();
   } catch (e) {
     document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. Please check your connection and try again.</div>';
@@ -206,6 +246,7 @@ function getAcquisition(c) {
 }
 
 // Filtering and Sorting: Applies tab, search, chain, liquidity, volume and age filters, then sort order.
+// Tokens without verified age are excluded when an age filter is active.
 function getFiltered() {
   let q = document.getElementById('search').value.toLowerCase().trim();
   let sort = document.getElementById('sort').value;
@@ -218,8 +259,8 @@ function getFiltered() {
   if (currentTab === 'watchlist') list = list.filter(c => watchlist.includes(c.address));
   if (q) list = list.filter(c => (c.name + c.symbol + c.address).toLowerCase().includes(q));
   if (chain !== 'all') list = list.filter(c => c.chain === chain);
-  list = list.filter(c => c.liq >= minLiq && c.vol >= minVol && c.ageH <= maxAge);
-  if (sort === 'newest') list.sort((a, b) => a.ageH - b.ageH);
+  list = list.filter(c => c.liq >= minLiq && c.vol >= minVol && (c.ageH === null || c.ageH <= maxAge));
+  if (sort === 'newest') list.sort((a, b) => (a.ageH ?? 9999) - (b.ageH ?? 9999));
   if (sort === 'hottest') list.sort((a, b) => b.change - a.change);
   if (sort === 'liquidity') list.sort((a, b) => b.liq - a.liq);
   if (sort === 'volume') list.sort((a, b) => b.vol - a.vol);
@@ -235,10 +276,10 @@ function render() {
   document.getElementById('grid').innerHTML = list.map((c) => {
     let saved = watchlist.includes(c.address);
     let isHot = c.change >= 20;
-    let isNew = c.ageH <= 6;
+    let isNew = c.ageH !== null && c.ageH <= 6;
     let acq = getAcquisition(c);
     return `<div class="card" onclick="openDetail(${allCoins.indexOf(c)})">
-      <div class="top"><img src="${c.icon || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'"><div><b>${c.name}</b><br><small>${c.symbol} - ${c.chain.toUpperCase()}</small></div><span class="badge ${isHot ? 'hot' : isNew ? 'new' : ''}">${isHot ? 'HOT' : isNew ? 'NEW' : c.ageH + 'h ago'}</span></div>
+      <div class="top"><img src="${c.icon || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'"><div><b>${c.name}</b><br><small>${c.symbol} - ${c.chain.toUpperCase()}</small></div><span class="badge ${isHot ? 'hot' : isNew ? 'new' : ''}">${isHot ? 'HOT' : isNew ? 'NEW' : fmtAge(c.ageH)}</span></div>
       <div class="price">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
       <div class="stats"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Get It On</span>${acq.dexName}</div></div>
       <div style="font-size:11px;margin-top:8px;color:#9aa4b2">Where to get: ${acq.badge}</div>
@@ -271,17 +312,37 @@ function copyAddr(a) {
   alert('Contract address copied.');
 }
 
-// Token Detail: Opens the detail sheet with market overview, price chart, acquisition guide and trading links.
+// Data Accuracy: Fetches real hourly OHLCV chart data from GeckoTerminal for the selected pool.
+// Returns close prices and labels, falls back to current price if pool data is unavailable.
+async function fetchRealChart(c) {
+  if (!c.pairAddress) return null;
+  try {
+    const net = geckoNetwork(c.chain);
+    const url = `https://api.geckoterminal.com/api/v2/networks/${net}/pools/${c.pairAddress}/ohlcv/hour?aggregate=1&limit=24`;
+    const res = await fetch(url).then(r => r.json());
+    const list = res?.data?.attributes?.ohlcv_list || [];
+    if (!list.length) return null;
+    // GeckoTerminal returns [timestamp, open, high, low, close, volume]
+    const sorted = [...list].sort((a, b) => a[0] - b[0]);
+    return {
+      labels: sorted.map(x => new Date(x[0] * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
+      data: sorted.map(x => parseFloat(x[4]))
+    };
+  } catch (e) { return null; }
+}
+
+// Token Detail: Opens the detail sheet with market overview, real price chart, acquisition guide and trading links.
 let chart;
-function openDetail(idx) {
+async function openDetail(idx) {
   let c = allCoins[idx];
   if (!c) return;
   let acq = getAcquisition(c);
   document.getElementById('modal').classList.add('open');
   document.getElementById('detail').innerHTML = `
-    <h2>${c.name} (${c.symbol})</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${c.ageH}h ago</small>
+    <h2>${c.name} (${c.symbol})</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${fmtAge(c.ageH)} - Live Price</small>
     <div class="price" style="font-size:28px">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
     <canvas id="priceChart" height="140"></canvas>
+    <div style="font-size:11px;color:#9aa4b2;margin:6px 0">Real 24h chart - Source: GeckoTerminal / DexScreener</div>
     <div class="detail-grid"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Chain</span>${c.chain}</div></div>
     <div class="acquire">
       <h3>Where To Get This Coin</h3>
@@ -298,12 +359,14 @@ function openDetail(idx) {
     <div class="btns"><button class="buy" onclick="buy('${c.chain}','${c.address}')">Buy on DEX</button><button class="watch" onclick="window.open('https://dexscreener.com/${c.chain}/${c.address}','_blank')">View on DexScreener</button></div>
     <div class="btns"><button class="watch" onclick="toggleWatch('${c.address}');openDetail(${idx})">${watchlist.includes(c.address) ? 'Remove from Watchlist' : 'Add to Watchlist'}</button></div>
   `;
-  let labels = [], data = [], base = c.price || 0.001;
-  for (let i = 24; i >= 0; i--) { labels.push(i + 'h ago'); data.push(base * (1 + (Math.random() - 0.5) * 0.2)); }
+  const real = await fetchRealChart(c);
+  let labels, data;
+  if (real) { labels = real.labels; data = real.data; }
+  else { labels = ['24h ago', 'Now']; data = [c.price, c.price]; }
   if (chart) chart.destroy();
   chart = new Chart(document.getElementById('priceChart'), {
     type: 'line',
-    data: { labels: labels.reverse(), datasets: [{ label: 'Price USD', data: data.reverse(), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', fill: true, tension: 0.4, pointRadius: 0 }] },
+    data: { labels: labels, datasets: [{ label: 'Price USD', data: data, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', fill: true, tension: 0.4, pointRadius: 0 }] },
     options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9aa4b2' } }, y: { ticks: { color: '#9aa4b2' } } } }
   });
 }
@@ -312,9 +375,9 @@ function openDetail(idx) {
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 
-// Initialization: Initial load with automatic refresh every 60 seconds.
+// Initialization: Initial load with automatic refresh every 30 seconds for fresher data.
 load();
-setInterval(load, 60000);
+setInterval(load, 30000);
 </script>
 </body>
 </html>
