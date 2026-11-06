@@ -57,7 +57,7 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 <body>
 <!-- Header: Brand identity and live market status -->
 <header><h1>Coin Hunter <span>Pro</span></h1><div class="live">LIVE</div></header>
-<!-- Data Freshness: Shows when market data was last refreshed from the server -->
+<!-- Data Freshness: Shows when market data was last refreshed -->
 <div class="updated" id="lastUpdated">Updating data...</div>
 
 <!-- Navigation: Switch between New listings, Trending tokens and saved Watchlist -->
@@ -89,7 +89,7 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 <label>Max Age (hours)<input type="number" id="maxAge" value="72" oninput="render()"></label>
 </div>
 
-<!-- Token Grid: Populated dynamically from server API -->
+<!-- Token Grid: Populated dynamically from DexScreener direct -->
 <div id="grid" class="grid"></div>
 <div id="empty" class="empty" style="display:none">No coins found. Try lowering filters.</div>
 
@@ -102,9 +102,9 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 /**
  * Coin Hunter Pro - Core Hunter Features
  * Author: Topshugar
- * Data Source: Own Server API (/api/*) -> DexScreener + GeckoTerminal
- * Overview: Accurate data loading via server proxy, filtering, rendering,
- * token detail, watchlist and acquisition guide.
+ * Data Source: DexScreener Direct + GeckoTerminal Direct
+ * Overview: Works on Render Static Site, no server.js needed.
+ * Accurate data loading, filtering, rendering, token detail, watchlist and acquisition guide.
  */
 
 // State Management: Active token list, selected view and saved watchlist.
@@ -135,14 +135,16 @@ function fmtAge(ageH) {
   return Math.floor(ageH / 24) + 'd ago';
 }
 
-// Data Loading: Fetches tokens via own server to avoid CORS and improve reliability.
-// Server routes: GET /api/tokens and GET /api/pairs/:address
+// Data Loading: Direct DexScreener - Works on Render Static Site, no server.js needed.
 async function load() {
   try {
-    const profilesRes = await fetch('/api/tokens').then(r => r.json());
+    const profilesRes = await fetch('https://api.dexscreener.com/token-profiles/latest/v1').then(r => {
+      if (!r.ok) throw new Error('DexScreener blocked: ' + r.status);
+      return r.json();
+    });
     const profiles = (profilesRes || []).slice(0, 30);
 
-    // Fetch real pair data via server proxy in parallel, limited to keep requests fast.
+    // Fetch real pair data in parallel, limited to keep requests fast.
     const enriched = await Promise.all(profiles.map(async (t) => {
       const base = {
         name: t.name || 'Unknown', symbol: t.symbol || '?', address: t.tokenAddress,
@@ -151,7 +153,7 @@ async function load() {
         ageH: null, pairAddress: '', dex: '', pairCreatedAt: null
       };
       try {
-        const pairRes = await fetch(`/api/pairs/${t.tokenAddress}`).then(r => r.json());
+        const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${t.tokenAddress}`).then(r => r.json());
         const pairs = pairRes?.pairs || [];
         if (pairs.length) {
           // Choose the most liquid pair as the primary market for accurate pricing.
@@ -179,10 +181,11 @@ async function load() {
 
     lastUpdatedAt = new Date();
     const el = document.getElementById('lastUpdated');
-    if (el) el.textContent = 'Last updated: ' + lastUpdatedAt.toLocaleTimeString() + ' - Live via Server';
+    if (el) el.textContent = 'Last updated: ' + lastUpdatedAt.toLocaleTimeString() + ' - Live from DexScreener';
     render();
   } catch (e) {
-    document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. Check that server.js is running and try again.</div>';
+    console.error(e);
+    document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. DexScreener may be rate-limiting. Wait 10 seconds and refresh.</div>';
   }
 }
 
@@ -311,14 +314,13 @@ function copyAddr(a) {
   alert('Contract address copied.');
 }
 
-// Data Accuracy: Fetches real hourly OHLCV chart data via own server proxy.
-// Server route: GET /api/chart/:network/:pool -> GeckoTerminal
+// Data Accuracy: Fetches real hourly OHLCV chart data directly from GeckoTerminal.
+// No server needed - works on Render Static Site.
 async function fetchRealChart(c) {
   if (!c.pairAddress) return null;
   try {
     const net = geckoNetwork(c.chain);
-    const url = `/api/chart/${net}/${c.pairAddress}`;
-    const res = await fetch(url).then(r => r.json());
+    const res = await fetch(`https://api.geckoterminal.com/api/v2/networks/${net}/pools/${c.pairAddress}/ohlcv/hour?aggregate=1&limit=24`).then(r => r.json());
     const list = res?.data?.attributes?.ohlcv_list || [];
     if (!list.length) return null;
     // GeckoTerminal returns [timestamp, open, high, low, close, volume]
@@ -341,7 +343,7 @@ async function openDetail(idx) {
     <h2>${c.name} (${c.symbol})</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${fmtAge(c.ageH)} - Live Price</small>
     <div class="price" style="font-size:28px">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
     <canvas id="priceChart" height="140"></canvas>
-    <div style="font-size:11px;color:#9aa4b2;margin:6px 0">Real 24h chart - Source: GeckoTerminal via Server</div>
+    <div style="font-size:11px;color:#9aa4b2;margin:6px 0">Real 24h chart - Source: GeckoTerminal / DexScreener</div>
     <div class="detail-grid"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Chain</span>${c.chain}</div></div>
     <div class="acquire">
       <h3>Where To Get This Coin</h3>
