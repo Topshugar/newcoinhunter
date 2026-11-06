@@ -44,6 +44,12 @@ input,select{background:#151a24;border:1px solid #232a35;color:#fff;padding:10px
 .contract{display:flex;gap:8px;background:#0b0e14;padding:10px;border-radius:10px;font-size:12px;word-break:break-all;margin:10px 0}
 .contract button{background:#22c55e;border:0;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap}
 canvas{background:#0b0e14;border-radius:12px;padding:8px}
+.acquire{background:#0b0e14;border:1px solid #22c55e;border-radius:12px;padding:12px;margin:12px 0}
+.acquire h3{font-size:15px;margin-bottom:8px}
+.acquire p{font-size:13px;color:#cbd5e1;line-height:1.5}
+.acquire .tag{display:inline-block;background:#14532d;color:#bbf7d0;padding:4px 8px;border-radius:20px;font-size:11px;margin:4px 4px 0 0}
+.acquire .tag.warn{background:#7f1d1d;color:#fecaca}
+.info-box{background:#fef3c7;color:#92400e;padding:10px;border-radius:10px;font-size:12px;line-height:1.5;margin:12px 0}
 </style>
 </head>
 <body>
@@ -87,7 +93,7 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 /**
  * Coin Hunter Pro - Core Hunter Features
  * Author: Topshugar
- * Modules: Data Loading, Filtering & Sorting, Rendering, Token Detail, Watchlist, Trading Links
+ * Modules: Data Loading, Filtering & Sorting, Rendering, Token Detail, Watchlist, Trading & Mining Guide
  * Data Source: DexScreener Public API
  */
 
@@ -111,53 +117,29 @@ async function load() {
       fetch('https://api.dexscreener.com/token-profiles/latest/v1').then(r => r.json()),
       fetch('https://api.dexscreener.com/latest/dex/search?q=SOL').then(r => r.json()).catch(() => ({ pairs: [] }))
     ]);
-
-    // Normalize token profiles into internal coin model
     let list = (profiles || []).slice(0, 80).map(t => ({
-      name: t.name || 'Unknown',
-      symbol: t.symbol || '?',
-      address: t.tokenAddress,
-      chain: t.chainId || 'solana',
-      icon: t.icon || '',
-      url: t.url || '',
-      desc: t.description || '',
+      name: t.name || 'Unknown', symbol: t.symbol || '?', address: t.tokenAddress,
+      chain: t.chainId || 'solana', icon: t.icon || '', url: t.url || '', desc: t.description || '',
       price: 0, change: 0, liq: 0, vol: 0, mcap: 0,
-      ageH: Math.floor(Math.random() * 48) + 1,
-      pairAddress: '', dex: ''
+      ageH: Math.floor(Math.random() * 48) + 1, pairAddress: '', dex: ''
     }));
-
-    // Enrich profiles with live market data where a matching pair exists
     if (search.pairs) {
       search.pairs.slice(0, 20).forEach(p => {
         let f = list.find(x => x.address?.toLowerCase() === p.baseToken.address.toLowerCase());
         if (f) {
-          f.price = parseFloat(p.priceUsd || 0);
-          f.change = parseFloat(p.priceChange?.h24 || 0);
-          f.liq = p.liquidity?.usd || 0;
-          f.vol = p.volume?.h24 || 0;
-          f.mcap = p.fdv || p.marketCap || 0;
-          f.dex = p.dexId;
-          f.pairAddress = p.pairAddress;
-          f.icon = p.info?.imageUrl || f.icon;
+          f.price = parseFloat(p.priceUsd || 0); f.change = parseFloat(p.priceChange?.h24 || 0);
+          f.liq = p.liquidity?.usd || 0; f.vol = p.volume?.h24 || 0; f.mcap = p.fdv || p.marketCap || 0;
+          f.dex = p.dexId; f.pairAddress = p.pairAddress; f.icon = p.info?.imageUrl || f.icon;
         }
       });
     }
-
-    // Fallback: Use trending pairs directly if profile list is insufficient
     if (list.length < 10 && search.pairs) {
       search.pairs.forEach(p => {
         if (!list.find(x => x.address === p.baseToken.address)) {
-          list.push({
-            name: p.baseToken.name, symbol: p.baseToken.symbol, address: p.baseToken.address,
-            chain: p.chainId, icon: p.info?.imageUrl || '',
-            price: parseFloat(p.priceUsd || 0), change: parseFloat(p.priceChange?.h24 || 0),
-            liq: p.liquidity?.usd || 0, vol: p.volume?.h24 || 0, mcap: p.fdv || 0,
-            ageH: 12, dex: p.dexId, pairAddress: p.pairAddress
-          });
+          list.push({ name: p.baseToken.name, symbol: p.baseToken.symbol, address: p.baseToken.address, chain: p.chainId, icon: p.info?.imageUrl || '', price: parseFloat(p.priceUsd || 0), change: parseFloat(p.priceChange?.h24 || 0), liq: p.liquidity?.usd || 0, vol: p.volume?.h24 || 0, mcap: p.fdv || 0, ageH: 12, dex: p.dexId, pairAddress: p.pairAddress });
         }
       });
     }
-
     allCoins = list;
     render();
   } catch (e) {
@@ -186,7 +168,58 @@ function setTab(t, el) {
 }
 
 // ==========================================================================
-// 4. FILTERING & SORTING
+// 4. ACQUISITION GUIDE - WHERE TO GET / MINE THIS COIN
+// ==========================================================================
+/**
+ * Returns acquisition info for a coin.
+ * Most new DEX tokens are NOT mineable. They are bought on a DEX or CEX.
+ * Only Proof-of-Work coins like BTC, LTC, DOGE, KASPA can be mined.
+ */
+function getAcquisition(c) {
+  const mineable = ['BTC','BITCOIN','LTC','LITECOIN','DOGE','DOGECOIN','KAS','KASPA','ETC','XMR','MONERO','BCH'];
+  const sym = (c.symbol || '').toUpperCase();
+  const isMineable = mineable.includes(sym);
+
+  const dexByChain = {
+    solana: { name: 'Raydium / Jupiter', url: `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${c.address}`, cex: 'Binance, Bybit, OKX' },
+    bsc: { name: 'PancakeSwap', url: `https://pancakeswap.finance/swap?outputCurrency=${c.address}`, cex: 'Binance, Bitget' },
+    ethereum: { name: 'Uniswap', url: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, cex: 'Binance, Coinbase, Kraken' },
+    base: { name: 'Uniswap on Base', url: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, cex: 'Coinbase, Bybit' }
+  };
+  const dex = dexByChain[c.chain] || { name: 'DexScreener', url: `https://dexscreener.com/${c.chain}/${c.address}`, cex: 'Check CoinGecko for CEX listing' };
+
+  if (isMineable) {
+    return {
+      title: 'Mineable Coin - You Can Mine This',
+      badge: 'MINEABLE',
+      badgeClass: '',
+      text: `${c.name} (${c.symbol}) runs on Proof-of-Work. You can mine it with hardware and earn rewards.`,
+      steps: [
+        '1. Get a wallet for ' + c.symbol + ' (official wallet or Trust Wallet)',
+        '2. Join a mining pool: F2Pool, ViaBTC, Antpool or 2Miners',
+        '3. Connect your ASIC / GPU miner to the pool',
+        '4. You earn ' + c.symbol + ' directly to your wallet'
+      ],
+      dexName: dex.name, dexUrl: dex.url, cex: dex.cex
+    };
+  }
+  return {
+    title: 'Not Mineable - Buy It Instead',
+    badge: 'NOT MINEABLE - BUY ONLY',
+    badgeClass: 'warn',
+    text: `${c.name} (${c.symbol}) is a token on ${c.chain.toUpperCase()}. It cannot be mined. It was created on a smart contract and you get it by buying or swapping.`,
+    steps: [
+      '1. Buy ' + (c.chain === 'solana' ? 'SOL' : c.chain === 'bsc' ? 'BNB' : 'ETH') + ' on Binance / Bybit',
+      '2. Send it to your wallet (Phantom for Solana, MetaMask for BSC / ETH / Base)',
+      `3. Swap on ${dex.name} using the contract below`,
+      '4. Or buy on CEX if listed: ' + dex.cex
+    ],
+    dexName: dex.name, dexUrl: dex.url, cex: dex.cex
+  };
+}
+
+// ==========================================================================
+// 5. FILTERING & SORTING
 // ==========================================================================
 /**
  * Applies active tab, search query, chain, liquidity, volume and age filters,
@@ -200,13 +233,11 @@ function getFiltered() {
   let chain = document.getElementById('chain').value;
   let maxAge = +document.getElementById('maxAge').value || 9999;
   let list = [...allCoins];
-
   if (currentTab === 'trending') list = list.filter(c => Math.abs(c.change) >= 5);
   if (currentTab === 'watchlist') list = list.filter(c => watchlist.includes(c.address));
   if (q) list = list.filter(c => (c.name + c.symbol + c.address).toLowerCase().includes(q));
   if (chain !== 'all') list = list.filter(c => c.chain === chain);
   list = list.filter(c => c.liq >= minLiq && c.vol >= minVol && c.ageH <= maxAge);
-
   if (sort === 'newest') list.sort((a, b) => a.ageH - b.ageH);
   if (sort === 'hottest') list.sort((a, b) => b.change - a.change);
   if (sort === 'liquidity') list.sort((a, b) => b.liq - a.liq);
@@ -216,9 +247,9 @@ function getFiltered() {
 }
 
 // ==========================================================================
-// 5. RENDERING
+// 6. RENDERING
 // ==========================================================================
-/** Renders the filtered coin grid. */
+/** Renders the filtered coin grid with acquisition source. */
 function render() {
   let list = getFiltered();
   document.getElementById('watchCount').textContent = watchlist.length;
@@ -227,17 +258,19 @@ function render() {
     let saved = watchlist.includes(c.address);
     let isHot = c.change >= 20;
     let isNew = c.ageH <= 6;
+    let acq = getAcquisition(c);
     return `<div class="card" onclick="openDetail(${allCoins.indexOf(c)})">
       <div class="top"><img src="${c.icon || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'"><div><b>${c.name}</b><br><small>${c.symbol} - ${c.chain.toUpperCase()}</small></div><span class="badge ${isHot ? 'hot' : isNew ? 'new' : ''}">${isHot ? 'HOT' : isNew ? 'NEW' : c.ageH + 'h ago'}</span></div>
       <div class="price">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
-      <div class="stats"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Age</span>${c.ageH}h - ${c.dex || 'DEX'}</div></div>
-      <div class="btns"><button class="buy" onclick="event.stopPropagation();buy('${c.chain}','${c.address}')">Buy</button><button class="watch ${saved ? 'saved' : ''}" onclick="event.stopPropagation();toggleWatch('${c.address}')">${saved ? 'Saved' : 'Watch'}</button></div>
+      <div class="stats"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Get It On</span>${acq.dexName}</div></div>
+      <div style="font-size:11px;margin-top:8px;color:#9aa4b2">Where to get: ${acq.badge}</div>
+      <div class="btns"><button class="buy" onclick="event.stopPropagation();buy('${c.chain}','${c.address}')">Buy / Mine</button><button class="watch ${saved ? 'saved' : ''}" onclick="event.stopPropagation();toggleWatch('${c.address}')">${saved ? 'Saved' : 'Watch'}</button></div>
     </div>`;
   }).join('');
 }
 
 // ==========================================================================
-// 6. WATCHLIST
+// 7. WATCHLIST
 // ==========================================================================
 /** Adds or removes a token from the local watchlist. */
 function toggleWatch(addr) {
@@ -247,7 +280,7 @@ function toggleWatch(addr) {
 }
 
 // ==========================================================================
-// 7. TRADING & UTILITIES
+// 8. TRADING & UTILITIES
 // ==========================================================================
 /** Opens the native DEX swap page for the selected chain. */
 function buy(chain, addr) {
@@ -267,29 +300,41 @@ function copyAddr(a) {
 }
 
 // ==========================================================================
-// 8. TOKEN DETAIL VIEW
+// 9. TOKEN DETAIL VIEW
 // ==========================================================================
 let chart;
 /**
  * Opens the token detail sheet with market overview, price chart,
- * contract address and trading links.
+ * acquisition guide, contract address and trading links.
  */
 function openDetail(idx) {
   let c = allCoins[idx];
   if (!c) return;
+  let acq = getAcquisition(c);
   document.getElementById('modal').classList.add('open');
   document.getElementById('detail').innerHTML = `
     <h2>${c.name} (${c.symbol})</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${c.ageH}h ago</small>
     <div class="price" style="font-size:28px">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
     <canvas id="priceChart" height="140"></canvas>
     <div class="detail-grid"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Chain</span>${c.chain}</div></div>
+
+    <div class="acquire">
+      <h3>Where To Get This Coin</h3>
+      <span class="tag ${acq.badgeClass}">${acq.badge}</span>
+      <span class="tag">DEX: ${acq.dexName}</span>
+      <span class="tag">Chain: ${c.chain.toUpperCase()}</span>
+      <p style="margin-top:8px">${acq.text}</p>
+      <p style="margin-top:8px">${acq.steps.join('<br>')}</p>
+      <div class="btns"><button class="buy" onclick="window.open('${acq.dexUrl}','_blank')">Open ${acq.dexName}</button><button class="watch" onclick="window.open('https://www.coingecko.com/en/search?query=${c.symbol}','_blank')">Check CEX Listing</button></div>
+    </div>
+
+    <div class="info-box">Most new coins in Coin Hunter are NOT mineable. Mining only works for Proof-of-Work coins like BTC, LTC, DOGE. For all other tokens, use Buy / Swap on the DEX above.</div>
+
     <b>Contract Address</b><div class="contract"><span>${c.address}</span><button onclick="copyAddr('${c.address}')">Copy</button></div>
     <p style="color:#9aa4b2;font-size:13px;margin:8px 0">${c.desc || 'No description available. Always conduct your own research before trading.'}</p>
     <div class="btns"><button class="buy" onclick="buy('${c.chain}','${c.address}')">Buy on DEX</button><button class="watch" onclick="window.open('https://dexscreener.com/${c.chain}/${c.address}','_blank')">View on DexScreener</button></div>
     <div class="btns"><button class="watch" onclick="toggleWatch('${c.address}');openDetail(${idx})">${watchlist.includes(c.address) ? 'Remove from Watchlist' : 'Add to Watchlist'}</button></div>
   `;
-
-  // Price history visualization - 24h sampled trend
   let labels = [], data = [], base = c.price || 0.001;
   for (let i = 24; i >= 0; i--) { labels.push(i + 'h ago'); data.push(base * (1 + (Math.random() - 0.5) * 0.2)); }
   if (chart) chart.destroy();
@@ -304,12 +349,4 @@ function openDetail(idx) {
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 
-// ==========================================================================
-// 9. INITIALIZATION
-// ==========================================================================
-/** Initial load and automatic refresh every 60 seconds. */
-load();
-setInterval(load, 60000);
-</script>
-</body>
-</html>
+// =======
