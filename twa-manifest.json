@@ -4,26 +4,30 @@
   "name": "Coin Hunter Pro",
   "launcherName": "Coin Hunter",
   "display": "standalone",
+  "orientation": "portrait",
   "themeColor": "#000000",
   "navigationColor": "#000000",
   "backgroundColor": "#000000",
   "enableNotifications": false,
   "startUrl": "/",
   "iconUrl": "https://newcoinhunter.onrender.com/icon-512.png",
-  "manifestUrl": "https://newcoinhunter.onrender.com/manifest.json",
+  "maskableIconUrl": "https://newcoinhunter.onrender.com/icon-512.png",
+  "webManifestUrl": "https://newcoinhunter.onrender.com/manifest.json",
   "splashScreenFadeOutDuration": 300,
-  "signing": {
-    "keyAlias": "android"
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "android"
   },
-  "appVersion": "1.0.0",
+  "appVersionName": "1.0.0",
   "appVersionCode": 1,
-  "shotcuts": [],
+  "shortcuts": [],
   "fallbackType": "customtabs",
   "features": {},
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://newcoinhunter.onrender.com/",
+  "minSdkVersion": 23,
   "alphaDependencies": {
     "enabled": false
-  },
-  "webManifestUrl": "https://newcoinhunter.onrender.com/manifest.json",
-  "fullScopeUrl": "https://newcoinhunter.onrender.com/",
-  "minSdkVersion": 23
+  }
 }
