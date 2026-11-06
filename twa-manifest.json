@@ -1,1 +1,29 @@
-twa-manifest.json
+{
+  "packageId": "com.newcoinhunter.app",
+  "host": "newcoinhunter.onrender.com",
+  "name": "Coin Hunter Pro",
+  "launcherName": "Coin Hunter",
+  "display": "standalone",
+  "themeColor": "#000000",
+  "navigationColor": "#000000",
+  "backgroundColor": "#000000",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://newcoinhunter.onrender.com/icon-512.png",
+  "manifestUrl": "https://newcoinhunter.onrender.com/manifest.json",
+  "splashScreenFadeOutDuration": 300,
+  "signing": {
+    "keyAlias": "android"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shotcuts": [],
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "webManifestUrl": "https://newcoinhunter.onrender.com/manifest.json",
+  "fullScopeUrl": "https://newcoinhunter.onrender.com/",
+  "minSdkVersion": 23
+}
