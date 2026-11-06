@@ -1,42 +1,24 @@
 name: Build APK
-
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
-
-      - name: Init TWA Project
-        run: |
-          npx @bubblewrap/cli init --manifest=https://newcoinhunter.onrender.com/manifest.json --directory=./twa-app || true
-
-      - name: Build APK
-        run: |
-          cd twa-app
-          npx @bubblewrap/cli build
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - run: npm install -g @bubblewrap/cli
+      - run: npx @bubblewrap/cli init --manifest=https://newcoinhunter.onrender.com/manifest.json
+      - run: npx @bubblewrap/cli build
+      - uses: actions/upload-artifact@v4
         with:
           name: coin-hunter-apk
-          path: twa-app/app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk
