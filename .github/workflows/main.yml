@@ -9,10 +9,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -21,18 +17,117 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - run: npm install -g @bubblewrap/cli
-
-      - name: Tell Bubblewrap where JDK and SDK are
+      - name: Create Android WebView Project
         run: |
-          mkdir -p ~/.bubblewrap
-          echo "{\"jdkPath\": \"$JAVA_HOME\", \"androidSdkPath\": \"$ANDROID_HOME\"}" > ~/.bubblewrap/config.json
-          cat ~/.bubblewrap/config.json
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          ls $ANDROID_HOME
+          mkdir -p app/src/main/java/com/coinhunter/app
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+
+          cat > settings.gradle <<'EOF'
+          rootProject.name = "CoinHunter"
+          include ':app'
+          EOF
+
+          cat > build.gradle <<'EOF'
+          buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.application:8.1.4' }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          apply plugin: 'com.android.application'
+          android {
+            namespace 'com.coinhunter.app'
+            compileSdk 34
+            defaultConfig {
+              applicationId "com.coinhunter.app"
+              minSdk 24
+              targetSdk 34
+              versionCode 1
+              versionName "1.0"
+            }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+          }
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <application android:allowBackup="true" android:label="Coin Hunter Pro" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+              <activity android:name=".MainActivity" android:exported="true">
+                <intent-filter>
+                  <action android:name="android.intent.action.MAIN" />
+                  <category android:name="android.intent.category.LAUNCHER" />
+                </intent-filter>
+              </activity>
+            </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/coinhunter/app/MainActivity.kt <<'EOF'
+          package com.coinhunter.app
+          import android.os.Bundle
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+          import androidx.appcompat.app.AppCompatActivity
+          class MainActivity : AppCompatActivity() {
+            override fun onCreate(savedInstanceState: Bundle?) {
+              super.onCreate(savedInstanceState)
+              val webView = WebView(this)
+              webView.settings.javaScriptEnabled = true
+              webView.settings.domStorageEnabled = true
+              webView.webViewClient = WebViewClient()
+              webView.loadUrl("https://newcoinhunter.onrender.com")
+              setContentView(webView)
+            }
+          }
+          EOF
+
+          # Kotlin plugin + AppCompat - needed for AppCompatActivity
+          cat > app/build.gradle <<'EOF'
+          apply plugin: 'com.android.application'
+          apply plugin: 'org.jetbrains.kotlin.android'
+          android {
+            namespace 'com.coinhunter.app'
+            compileSdk 34
+            defaultConfig {
+              applicationId "com.coinhunter.app"
+              minSdk 24
+              targetSdk 34
+              versionCode 1
+              versionName "1.0"
+            }
+            compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+          }
+          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          EOF
+
+          cat > build.gradle <<'EOF'
+          buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies {
+              classpath 'com.android.application:8.1.4'
+              classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.20'
+            }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EOF
+
+          cat > gradle/wrapper/gradle-wrapper.properties <<'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          mkdir -p gradle/wrapper
 
       - name: Build APK
-        run: printf 'n\n%s\n' "$ANDROID_HOME" | npx @bubblewrap/cli build --skipSigning --skipPwaValidation
+        run: |
+          chmod +x gradlew || true
+          ./gradlew :app:assembleDebug || gradle :app:assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
