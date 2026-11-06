@@ -4,99 +4,227 @@
 <title>Coin Hunter Pro - Hunt New Mineable Coins</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-body{background:#0a0f1e;color:#fff;font-family:Arial;padding:15px}
-h1{font-size:32px;text-align:center;color:#00ff9d}
+body{background:#0a0f1e;color:#fff;font-family:Arial;padding:15px;max-width:800px;margin:auto}
+h1{font-size:32px;text-align:center;color:#00ff9d;margin-bottom:0}
 .subtitle{text-align:center;color:#aaa}
 .card{background:#131a2e;border:1px solid #222;padding:15px;border-radius:12px;margin:12px 0}
-.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold}
+.badge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:bold;display:inline-block}
 .phone{background:#00c853;color:#fff}
 .pc{background:#2962ff;color:#fff}
 .asic{background:#ff3d00;color:#fff}
-button{background:#00ff9d;border:none;padding:10px 15px;border-radius:8px;font-weight:bold;width:100%;margin-top:10px}
+.rare{background:#2196f3;color:#fff}
+.epic{background:#9c27b0;color:#fff}
+.pow{background:#ff9800;color:#000}
+button{background:#00ff9d;border:none;padding:12px 15px;border-radius:8px;font-weight:bold;width:100%;margin-top:10px;cursor:pointer;color:#000}
+button.secondary{background:#222;color:#fff}
 a{color:#00ff9d}
 .small{color:#aaa;font-size:12px}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:15px 0}
+.stat{background:#131a2e;border:1px solid #222;border-radius:12px;padding:12px;text-align:center}
+.stat b{font-size:22px;display:block;color:#00ff9d}
+input{width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#0a0f1e;color:#fff;box-sizing:border-box}
+.topbar{display:flex;gap:10px}
+.topbar button{margin-top:0}
 </style>
 </head>
 <body>
 
 <h1>COIN HUNTER PRO</h1>
 <p class="subtitle">Hunts ALL New Coins • Shows Only Mineable PoW • Phone or PC Filter</p>
-<p class="subtitle" id="status">Hunting... please wait</p>
+
+<div class="stats">
+  <div class="stat"><span>Coins Hunted</span><b id="huntedCount">0</b></div>
+  <div class="stat"><span>POW Coins Found</span><b id="powCount">0</b></div>
+  <div class="stat"><span>Wallet POW</span><b id="walletCount">0</b></div>
+</div>
+
+<div class="card">
+  <div class="topbar">
+    <button onclick="startTimerMode()">⏱ TIMER MODE: 60s</button>
+    <button class="secondary" onclick="hunt(true)">🔄 NEW BATCH</button>
+  </div>
+  <p class="subtitle" id="status">Hunting... please wait</p>
+  <p class="subtitle" id="timerText"></p>
+  <p class="subtitle" id="streakText"></p>
+  <p class="subtitle" id="achieveText"></p>
+</div>
+
+<div class="card">
+  <h3>🏆 Leaderboard (This Device)</h3>
+  <div id="leaderboard">No scores yet. Hunt a batch to appear.</div>
+  <input id="hunterName" placeholder="Your hunter name for leaderboard" style="margin-top:10px">
+  <button class="secondary" onclick="saveScore()">Save My Score</button>
+</div>
 
 <div id="results"></div>
 
 <script>
-// H1 PRO - COIN HUNTER LOGIC
+// ---- STATE - Saved in browser ----
+let coinsHunted = Number(localStorage.getItem("ch_hunted") || 0);
+let powFound = Number(localStorage.getItem("ch_pow") || 0);
+let walletPow = Number(localStorage.getItem("walletPow") || 0);
+let streak = Number(localStorage.getItem("ch_streak") || 0);
+let lastHuntDay = localStorage.getItem("ch_lastDay") || "";
+let achievements = JSON.parse(localStorage.getItem("ch_achieve") || "[]");
+let currentBatch = [];
+let timerInterval = null;
+let timeLeft = 0;
 
-// 1. ALGORITHM -> DEVICE MAP - THIS IS THE ACCURATE PART
+function saveState(){
+  localStorage.setItem("ch_hunted", coinsHunted);
+  localStorage.setItem("ch_pow", powFound);
+  localStorage.setItem("walletPow", walletPow);
+  localStorage.setItem("ch_streak", streak);
+  localStorage.setItem("ch_lastDay", lastHuntDay);
+  localStorage.setItem("ch_achieve", JSON.stringify(achievements));
+  updateDisplay();
+}
+
+function playPowSound(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(); const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; o.type = "sine";
+    g.gain.setValueAtTime(0.2, ctx.currentTime);
+    o.start(); o.stop(ctx.currentTime + 0.35);
+  }catch(e){}
+}
+
+function getRarity(coin){
+  // POW coins from server all have type === "pow"
+  if(coin.type === "pow") return {label:"POW", cls:"pow"};
+  if(coin.difficulty === "HARD") return {label:"EPIC", cls:"epic"};
+  if(coin.difficulty === "MEDIUM") return {label:"RARE", cls:"rare"};
+  return {label:"COMMON", cls:"phone"};
+}
+
 function getDevice(algorithm){
   algorithm = (algorithm||"").toLowerCase();
-  if(["randomx","yespower","cryptonight","argon2"].some(a=>algorithm.includes(a))){
-    return {label:"PC - CPU", cls:"pc", canPhone:false, miner:"XMRig / SRBMiner"};
-  }
-  if(["kawpow","ethash","etchash","blake3","octopus","autolykos2"].some(a=>algorithm.includes(a))){
-    return {label:"PC - GPU", cls:"pc", canPhone:false, miner:"T-Rex / lolMiner / NBMiner"};
-  }
-  if(["sha-256","sha256","scrypt","kadena","blake2b"].some(a=>algorithm.includes(a))){
-    return {label:"ASIC ONLY", cls:"asic", canPhone:false, miner:"ASIC Miner Required"};
-  }
-  if(["web","browser","sha-256-low","custom"].some(a=>algorithm.includes(a))){
-    return {label:"PHONE OK", cls:"phone", canPhone:true, miner:"Browser Miner"};
-  }
+  if(["randomx","yespower","cryptonight","argon2"].some(a=>algorithm.includes(a))) return {label:"PC - CPU", cls:"pc", canPhone:false, miner:"XMRig / SRBMiner"};
+  if(["kawpow","ethash","etchash","blake3","octopus","autolykos2"].some(a=>algorithm.includes(a))) return {label:"PC - GPU", cls:"pc", canPhone:false, miner:"T-Rex / lolMiner / NBMiner"};
+  if(["sha-256","sha256","scrypt","kadena","blake2b"].some(a=>algorithm.includes(a))) return {label:"ASIC ONLY", cls:"asic", canPhone:false, miner:"ASIC Miner Required"};
+  if(["web","browser","sha-256-low","custom"].some(a=>algorithm.includes(a))) return {label:"PHONE OK", cls:"phone", canPhone:true, miner:"Browser Miner"};
   return {label:"PC - CHECK", cls:"pc", canPhone:false, miner:"Check Pool"};
 }
 
-async function hunt(){
-  const box = document.getElementById("results");
-  try{
-    // REAL SOURCE 1: MiningPoolStats - Real PoW coins + pools
-    // REAL SOURCE 2: CoinGecko - New coins
-    // We merge both, we never invent coins
-
-    const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=id_asc&per_page=50&page=1&sparkline=false");
-    const coins = await res.json();
-
-    document.getElementById("status").innerText = `Found ${coins.length} new coins scanned • Filtering PoW only...`;
-
-    // For accuracy: we fetch detail for each coin to check consensus
-    // To keep it fast, we show first 20 and check their detail
-    let html = "";
-    for(let c of coins.slice(0,20)){
-      let detail = await fetch(`https://api.coingecko.com/api/v3/coins/${c.id}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false`).then(r=>r.json()).catch(()=>null);
-      
-      // CoinGecko does not always give consensus, so we use categories + description
-      let algo = detail?.hashing_algorithm || "Unknown";
-      let desc = (detail?.description?.en || "").toLowerCase();
-      let isPoW = desc.includes("proof-of-work") || desc.includes("mining") || algo !== "Unknown" && algo !== null;
-
-      // YOUR NGN - Always show as Phone OK example
-      if(c.id === "bitcoin") algo = "SHA-256";
-
-      if(!isPoW && algo === "Unknown") continue; // Skip non-mineable
-
-      let device = getDevice(algo);
-
-      html += `
-      <div class="card">
-        <h2>${c.name} (${c.symbol.toUpperCase()})</h2>
-        <p>Price: $${c.current_price} • Added: Recently</p>
-        <p><b>Algorithm:</b> ${algo}</p>
-        <span class="badge ${device.cls}">${device.label}</span>
-        <span class="badge phone" style="margin-left:5px">${device.canPhone ? "PHONE: YES" : "PHONE: NO"}</span>
-        <p><b>Miner Software:</b> ${device.miner}</p>
-        <p><b>Mining Location / Pool:</b> <a href="https://miningpoolstats.stream/${c.symbol.toLowerCase()}" target="_blank">Check Pool on MiningPoolStats</a></p>
-        <p><b>Wallet:</b> ${c.symbol.toUpperCase()} Official Wallet / Trust Wallet if supported</p>
-        <p class="small">Source: CoinGecko API • Verified via hashing_algorithm • Not invented</p>
-        <button onclick="window.open('https://miningpoolstats.stream/${c.symbol.toLowerCase()}','_blank')">OPEN MINING POOL →</button>
-      </div>`;
-    }
-    box.innerHTML = html || "<p>No PoW coins found in this batch. Try again in 1 hour.</p>";
-    document.getElementById("status").innerText = "Hunter Finished • Accurate Data Only";
-  }catch(e){
-    document.getElementById("status").innerText = "API limit reached. CoinGecko allows 10-30 calls/min. Wait 1 min and refresh.";
-    box.innerHTML = `<div class="card"><h2>NGN 777 (YOUR COIN)</h2><p>Algorithm: SHA-256 Low Difficulty</p><span class="badge phone">PHONE OK</span><p><b>Mining Location:</b> https://ngn-chain.onrender.com/miner</p><p><b>Miner:</b> Browser Miner</p><p><b>Reward:</b> 50 NGN per block</p></div>`;
-  }
+function checkAchievements(){
+  const list = [];
+  if(powFound >= 1 && !achievements.includes("First POW Coin")) achievements.push("First POW Coin");
+  if(coinsHunted >= 100 && !achievements.includes("100 Coins Hunted")) achievements.push("100 Coins Hunted");
+  if(walletPow >= 10 && !achievements.includes("10 POW Total")) achievements.push("10 POW Total");
+  if(streak >= 7 && !achievements.includes("7-Day Streak")) achievements.push("7-Day Streak");
+  document.getElementById("achieveText").innerText = achievements.length ? "🏅 Achievements: " + achievements.join(" • ") : "🏅 Achievements: None yet";
 }
+
+function updateDisplay(){
+  document.getElementById("huntedCount").innerText = coinsHunted;
+  document.getElementById("powCount").innerText = powFound;
+  document.getElementById("walletCount").innerText = walletPow;
+  document.getElementById("streakText").innerText = streak ? `🔥 Streak: ${streak} day(s)` : "";
+  checkAchievements();
+  renderLeaderboard();
+}
+
+function renderLeaderboard(){
+  const scores = JSON.parse(localStorage.getItem("ch_board") || "[]");
+  scores.sort((a,b)=> b.pow - a.pow);
+  const el = document.getElementById("leaderboard");
+  if(!scores.length){ el.innerHTML = "No scores yet."; return; }
+  el.innerHTML = scores.slice(0,5).map((s,i)=> `<p>${i+1}. <b>${s.name}</b> - ${s.pow} POW • ${s.hunted} Hunted</p>`).join("");
+}
+
+function saveScore(){
+  const name = document.getElementById("hunterName").value.trim() || "Anonymous Hunter";
+  const scores = JSON.parse(localStorage.getItem("ch_board") || "[]");
+  scores.push({name, pow: powFound, hunted: coinsHunted, date: new Date().toISOString()});
+  localStorage.setItem("ch_board", JSON.stringify(scores));
+  renderLeaderboard();
+  alert("Score saved to leaderboard.");
+}
+
+function huntCoin(index){
+  const coin = currentBatch[index];
+  if(!coin || coin.found) return;
+  coin.found = true;
+  coinsHunted++;
+  // CRITICAL FIX: Check exact spelling "pow" - same as server.js sends
+  if(coin.type === "pow"){
+    powFound++;
+    walletPow += 1;
+    playPowSound();
+    alert(`🎉 POW COIN FOUND: ${coin.name} (${coin.symbol}) - Added to wallet!`);
+  }
+  saveState();
+  renderBatch();
+}
+
+function renderBatch(){
+  const box = document.getElementById("results");
+  if(!currentBatch.length){ box.innerHTML = "<p>No PoW coins found in this batch. Try again in 1 hour.</p>"; return; }
+  box.innerHTML = currentBatch.map((c,i)=>{
+    const device = getDevice(c.algorithm);
+    const rarity = getRarity(c);
+    return `
+    <div class="card" style="${c.found ? 'opacity:0.55' : ''}">
+      <h2>${c.name} (${c.symbol})</h2>
+      <p>Price: $${c.price} • Algorithm: ${c.algorithm}</p>
+      <span class="badge ${rarity.cls}">${rarity.label}</span>
+      <span class="badge ${device.cls}" style="margin-left:5px">${device.label}</span>
+      <span class="badge phone" style="margin-left:5px">${device.canPhone ? "PHONE: YES" : "PHONE: NO"}</span>
+      <p><b>Miner Software:</b> ${device.miner}</p>
+      <p><b>Mining Pool:</b> <a href="${c.poolLink}" target="_blank">Check Pool on MiningPoolStats</a></p>
+      <p><b>Wallet:</b> ${c.symbol} Official Wallet / Trust Wallet if supported</p>
+      <p class="small">Source: Coin Hunter Server • Type: ${c.type} • Verified PoW</p>
+      <button onclick="huntCoin(${i})" ${c.found ? 'disabled' : ''}>${c.found ? '✓ HUNTED' : '🎯 HUNT THIS COIN'}</button>
+    </div>`;
+  }).join("");
+}
+
+async function hunt(forceNew=false){
+  const today = new Date().toDateString();
+  if(lastHuntDay !== today){
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    streak = (lastHuntDay === yesterday) ? streak + 1 : 1;
+    lastHuntDay = today;
+    saveState();
+  }
+  document.getElementById("status").innerText = "Hunting... fetching from your server...";
+  try{
+    // FIX: Use YOUR server, not CoinGecko directly. 1 call, no rate limit.
+    const res = await fetch("/api/hunter");
+    const data = await res.json();
+    currentBatch = (data.coins || []).map(c => ({...c, found:false}));
+    document.getElementById("status").innerText = `Hunter Finished • Found ${currentBatch.length} PoW coins • Updated: ${data.updatedAt || ""}`;
+    if(!currentBatch.length){
+      document.getElementById("results").innerHTML = "<p>No PoW coins found in this batch. Server is updating. Try again in 1 hour.</p>";
+    } else {
+      renderBatch();
+    }
+  }catch(e){
+    document.getElementById("status").innerText = "Server not reachable. Showing fallback coin.";
+    currentBatch = [{name:"NGN 777 (YOUR COIN)", symbol:"NGN", price:0, algorithm:"SHA-256 Low Difficulty", difficulty:"EASY", type:"pow", poolLink:"https://ngn-chain.onrender.com/miner", poolStratum:"Browser Miner", found:false}];
+    renderBatch();
+  }
+  updateDisplay();
+}
+
+function startTimerMode(){
+  if(timerInterval) clearInterval(timerInterval);
+  timeLeft = 60;
+  document.getElementById("timerText").innerText = `⏱ Timer: ${timeLeft}s - Hunt fast!`;
+  hunt(true);
+  timerInterval = setInterval(()=>{
+    timeLeft--;
+    document.getElementById("timerText").innerText = `⏱ Timer: ${timeLeft}s - Hunt fast!`;
+    if(timeLeft <= 0){
+      clearInterval(timerInterval);
+      document.getElementById("timerText").innerText = `⏱ Time up! You hunted ${coinsHunted} coins in this session.`;
+    }
+  }, 1000);
+}
+
+updateDisplay();
 hunt();
 </script>
 </body>
