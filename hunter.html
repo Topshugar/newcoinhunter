@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Coin Hunter Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Application Styles: Layout, Cards, Detail View and Acquisition Guide -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
 body{background:#0b0e14;color:#e6e8ec;padding:16px;padding-bottom:40px}
@@ -53,8 +54,10 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 </style>
 </head>
 <body>
+<!-- Header: Brand identity and live market status -->
 <header><h1>Coin Hunter <span>Pro</span></h1><div class="live">LIVE</div></header>
 
+<!-- Navigation: Switch between New listings, Trending tokens and saved Watchlist -->
 <div class="controls">
 <div class="tabs">
 <button class="active" data-tab="new" onclick="setTab('new',this)">New</button>
@@ -63,6 +66,7 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 </div>
 </div>
 
+<!-- Search and Sorting: Find tokens by name, symbol or contract and order results -->
 <div class="controls">
 <input class="search" id="search" placeholder="Search by name, symbol or contract..." oninput="render()">
 <select class="sort" id="sort" onchange="render()">
@@ -74,6 +78,7 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 </select>
 </div>
 
+<!-- Filters: Refine results by liquidity, volume, chain and token age -->
 <div class="filters">
 <label>Min Liquidity $<input type="number" id="minLiq" value="0" oninput="render()"></label>
 <label>Min Volume 24h $<input type="number" id="minVol" value="0" oninput="render()"></label>
@@ -81,36 +86,30 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 <label>Max Age (hours)<input type="number" id="maxAge" value="72" oninput="render()"></label>
 </div>
 
+<!-- Token Grid: Populated dynamically from DexScreener data -->
 <div id="grid" class="grid"></div>
 <div id="empty" class="empty" style="display:none">No coins found. Try lowering filters.</div>
 
+<!-- Detail Modal: Token overview, price chart, acquisition guide and contract -->
 <div id="modal"><div class="sheet">
 <button class="close" onclick="closeModal()">X</button>
 <div id="detail"></div>
 </div></div>
-
 <script>
 /**
  * Coin Hunter Pro - Core Hunter Features
  * Author: Topshugar
- * Modules: Data Loading, Filtering & Sorting, Rendering, Token Detail, Watchlist, Trading & Mining Guide
  * Data Source: DexScreener Public API
+ * Overview: Data loading, filtering and sorting, rendering,
+ * token detail, watchlist and acquisition guide.
  */
 
-// ==========================================================================
-// 1. STATE MANAGEMENT
-// ==========================================================================
+// State Management: Active token list, selected view and saved watchlist.
 let allCoins = [];
 let currentTab = 'new';
 let watchlist = JSON.parse(localStorage.getItem('ch_watch') || '[]');
 
-// ==========================================================================
-// 2. DATA LOADING
-// ==========================================================================
-/**
- * Loads latest token profiles and enriches them with live pair data.
- * Refresh interval is handled at the bottom of this file.
- */
+// Data Loading: Fetches latest token profiles and enriches them with live pair data.
 async function load() {
   try {
     const [profiles, search] = await Promise.all([
@@ -147,10 +146,7 @@ async function load() {
   }
 }
 
-// ==========================================================================
-// 3. UTILITIES
-// ==========================================================================
-/** Formats a USD value into a compact readable string. */
+// Utilities: Formats a USD value into a compact, readable string.
 function fmt(n) {
   if (!n) return '$0';
   if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
@@ -159,7 +155,7 @@ function fmt(n) {
   return '$' + Number(n).toFixed(4);
 }
 
-/** Switches between New, Trending and Watchlist views. */
+// Navigation: Switches between New, Trending and Watchlist views.
 function setTab(t, el) {
   currentTab = t;
   document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
@@ -167,19 +163,13 @@ function setTab(t, el) {
   render();
 }
 
-// ==========================================================================
-// 4. ACQUISITION GUIDE - WHERE TO GET / MINE THIS COIN
-// ==========================================================================
-/**
- * Returns acquisition info for a coin.
- * Most new DEX tokens are NOT mineable. They are bought on a DEX or CEX.
- * Only Proof-of-Work coins like BTC, LTC, DOGE, KASPA can be mined.
- */
+// Acquisition Guide: Explains where to get or mine a coin.
+// Most new DEX tokens are not mineable. They are acquired by buying or swapping.
+// Only Proof-of-Work assets such as BTC, LTC, DOGE and KASPA can be mined.
 function getAcquisition(c) {
   const mineable = ['BTC','BITCOIN','LTC','LITECOIN','DOGE','DOGECOIN','KAS','KASPA','ETC','XMR','MONERO','BCH'];
   const sym = (c.symbol || '').toUpperCase();
   const isMineable = mineable.includes(sym);
-
   const dexByChain = {
     solana: { name: 'Raydium / Jupiter', url: `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${c.address}`, cex: 'Binance, Bybit, OKX' },
     bsc: { name: 'PancakeSwap', url: `https://pancakeswap.finance/swap?outputCurrency=${c.address}`, cex: 'Binance, Bitget' },
@@ -187,12 +177,10 @@ function getAcquisition(c) {
     base: { name: 'Uniswap on Base', url: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, cex: 'Coinbase, Bybit' }
   };
   const dex = dexByChain[c.chain] || { name: 'DexScreener', url: `https://dexscreener.com/${c.chain}/${c.address}`, cex: 'Check CoinGecko for CEX listing' };
-
   if (isMineable) {
     return {
       title: 'Mineable Coin - You Can Mine This',
-      badge: 'MINEABLE',
-      badgeClass: '',
+      badge: 'MINEABLE', badgeClass: '',
       text: `${c.name} (${c.symbol}) runs on Proof-of-Work. You can mine it with hardware and earn rewards.`,
       steps: [
         '1. Get a wallet for ' + c.symbol + ' (official wallet or Trust Wallet)',
@@ -205,8 +193,7 @@ function getAcquisition(c) {
   }
   return {
     title: 'Not Mineable - Buy It Instead',
-    badge: 'NOT MINEABLE - BUY ONLY',
-    badgeClass: 'warn',
+    badge: 'NOT MINEABLE - BUY ONLY', badgeClass: 'warn',
     text: `${c.name} (${c.symbol}) is a token on ${c.chain.toUpperCase()}. It cannot be mined. It was created on a smart contract and you get it by buying or swapping.`,
     steps: [
       '1. Buy ' + (c.chain === 'solana' ? 'SOL' : c.chain === 'bsc' ? 'BNB' : 'ETH') + ' on Binance / Bybit',
@@ -218,13 +205,7 @@ function getAcquisition(c) {
   };
 }
 
-// ==========================================================================
-// 5. FILTERING & SORTING
-// ==========================================================================
-/**
- * Applies active tab, search query, chain, liquidity, volume and age filters,
- * then applies the selected sort order.
- */
+// Filtering and Sorting: Applies tab, search, chain, liquidity, volume and age filters, then sort order.
 function getFiltered() {
   let q = document.getElementById('search').value.toLowerCase().trim();
   let sort = document.getElementById('sort').value;
@@ -246,10 +227,7 @@ function getFiltered() {
   return list;
 }
 
-// ==========================================================================
-// 6. RENDERING
-// ==========================================================================
-/** Renders the filtered coin grid with acquisition source. */
+// Rendering: Builds the filtered coin grid with acquisition source and watchlist state.
 function render() {
   let list = getFiltered();
   document.getElementById('watchCount').textContent = watchlist.length;
@@ -269,20 +247,14 @@ function render() {
   }).join('');
 }
 
-// ==========================================================================
-// 7. WATCHLIST
-// ==========================================================================
-/** Adds or removes a token from the local watchlist. */
+// Watchlist: Adds or removes a token from the locally saved watchlist.
 function toggleWatch(addr) {
   watchlist.includes(addr) ? watchlist = watchlist.filter(x => x !== addr) : watchlist.push(addr);
   localStorage.setItem('ch_watch', JSON.stringify(watchlist));
   render();
 }
 
-// ==========================================================================
-// 8. TRADING & UTILITIES
-// ==========================================================================
-/** Opens the native DEX swap page for the selected chain. */
+// Trading: Opens the native DEX swap page for the selected chain.
 function buy(chain, addr) {
   let m = {
     solana: `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${addr}`,
@@ -293,20 +265,14 @@ function buy(chain, addr) {
   window.open(m[chain] || `https://dexscreener.com/${chain}/${addr}`, '_blank');
 }
 
-/** Copies the contract address to clipboard. */
+// Utilities: Copies the contract address to clipboard.
 function copyAddr(a) {
   navigator.clipboard.writeText(a);
   alert('Contract address copied.');
 }
 
-// ==========================================================================
-// 9. TOKEN DETAIL VIEW
-// ==========================================================================
+// Token Detail: Opens the detail sheet with market overview, price chart, acquisition guide and trading links.
 let chart;
-/**
- * Opens the token detail sheet with market overview, price chart,
- * acquisition guide, contract address and trading links.
- */
 function openDetail(idx) {
   let c = allCoins[idx];
   if (!c) return;
@@ -317,7 +283,6 @@ function openDetail(idx) {
     <div class="price" style="font-size:28px">$${c.price ? c.price.toFixed(6) : '0.000000'} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
     <canvas id="priceChart" height="140"></canvas>
     <div class="detail-grid"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Chain</span>${c.chain}</div></div>
-
     <div class="acquire">
       <h3>Where To Get This Coin</h3>
       <span class="tag ${acq.badgeClass}">${acq.badge}</span>
@@ -327,9 +292,7 @@ function openDetail(idx) {
       <p style="margin-top:8px">${acq.steps.join('<br>')}</p>
       <div class="btns"><button class="buy" onclick="window.open('${acq.dexUrl}','_blank')">Open ${acq.dexName}</button><button class="watch" onclick="window.open('https://www.coingecko.com/en/search?query=${c.symbol}','_blank')">Check CEX Listing</button></div>
     </div>
-
     <div class="info-box">Most new coins in Coin Hunter are NOT mineable. Mining only works for Proof-of-Work coins like BTC, LTC, DOGE. For all other tokens, use Buy / Swap on the DEX above.</div>
-
     <b>Contract Address</b><div class="contract"><span>${c.address}</span><button onclick="copyAddr('${c.address}')">Copy</button></div>
     <p style="color:#9aa4b2;font-size:13px;margin:8px 0">${c.desc || 'No description available. Always conduct your own research before trading.'}</p>
     <div class="btns"><button class="buy" onclick="buy('${c.chain}','${c.address}')">Buy on DEX</button><button class="watch" onclick="window.open('https://dexscreener.com/${c.chain}/${c.address}','_blank')">View on DexScreener</button></div>
@@ -345,8 +308,13 @@ function openDetail(idx) {
   });
 }
 
-/** Closes the token detail sheet. */
+// Modal: Closes the token detail sheet.
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 
-// =======
+// Initialization: Initial load with automatic refresh every 60 seconds.
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
