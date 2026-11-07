@@ -1,3 +1,8 @@
+// ============================================================
+//  COIN HUNTER PRO - APP.JS - PART 1/5
+//  SECTION: APP STATE + HELPERS
+// ============================================================
+
 let allCoinsState = [];
 let boostedState = [];
 let sniperState = [];
@@ -18,7 +23,14 @@ let followedWalletsState = JSON.parse(localStorage.getItem('ch_followedWallets')
 let knownGraduatedState = new Set(JSON.parse(localStorage.getItem('ch_knownGrad') || '[]'));
 let themeState = localStorage.getItem('ch_theme') || 'dark';
 
+// ------------------------------------------------------------
+//  HELPER: GET ELEMENT BY ID
+// ------------------------------------------------------------
 function el(id){ return document.getElementById(id); }
+
+// ------------------------------------------------------------
+//  HELPER: FORMAT AGE / PRICE / MONEY
+// ------------------------------------------------------------
 function calcAgeH(t){ if(!t) return null; return Math.max(0,(Date.now()-t)/3600000); }
 function fmtAge(h){
   if(h==null) return 'Unknown';
@@ -38,6 +50,10 @@ function fmtPrice(p){
   if(p>=1) return '$'+p.toFixed(4);
   return '$'+p.toFixed(6);
 }
+
+// ------------------------------------------------------------
+//  ANTI-SCAM: DETECT PUMP.FUN VS GRADUATED
+// ------------------------------------------------------------
 function detectPumpFun(pair){
   const dex=(pair.dexId||'').toLowerCase();
   const url=(pair.url||'').toLowerCase();
@@ -56,6 +72,10 @@ function getPumpRisk(c){
   if(c.isGraduated) return {color:'#22c55e',text:'✅ GRADUATED - Real DEX'};
   return {color:'#eab308',text:'Real DEX - Check Safety'};
 }
+
+// ------------------------------------------------------------
+//  HOW TO BUY: DEX + CEX LINKS
+// ------------------------------------------------------------
 function getAcquisition(c){
   const dexByChain={
     solana:{name:'Jupiter',url:'https://jup.ag/swap/SOL-'+c.address,cex:'Binance, Bybit'},
@@ -68,6 +88,14 @@ function getAcquisition(c){
   if(mine) return {badge:'MINEABLE',text:c.name+' can be mined.',steps:['Get wallet','Join pool F2Pool','Connect miner'],dexName:d.name,dexUrl:d.url,cex:d.cex};
   return {badge:'NOT MINEABLE',text:c.name+' is a token on '+c.chain+'. Cannot be mined.',steps:['Buy '+(c.chain==='solana'?'SOL':c.chain==='bsc'?'BNB':'ETH'),'Send to wallet','Swap on '+d.name],dexName:d.name,dexUrl:d.url,cex:d.cex};
 }
+// ============================================================
+//  COIN HUNTER PRO - APP.JS - PART 2/5
+//  SECTION: BUTTONS + BOOSTS + SNIPER + TELEGRAM
+// ============================================================
+
+// ------------------------------------------------------------
+//  BUTTONS: THEME / SCAM TOGGLES / SHARE
+// ------------------------------------------------------------
 function updateScamButtons(){
   const h=el('hidePumpBtn'),g=el('gradOnlyBtn'),ga=el('gradAlertBtn');
   if(h){h.textContent=hidePumpState?'🚫 Hide Pump.fun: ON':'Show Pump.fun: OFF';h.className=hidePumpState?'toggle-on':'toggle-off';}
@@ -83,6 +111,9 @@ function toggleTheme(){themeState=themeState==='light'?'dark':'light';localStora
 function shareApp(){window.open('https://wa.me/?text='+encodeURIComponent('Coin Hunter Pro '+location.href),'_blank');}
 function shareCoin(addr){const c=allCoinsState.find(x=>x.address===addr);if(!c)return;const t=c.name+' ('+c.symbol+') Price $'+c.price+' https://dexscreener.com/'+c.chain+'/'+c.address;window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');}
 
+// ------------------------------------------------------------
+//  BOOSTS: PAID TRENDING COINS FROM DEXSCEENER
+// ------------------------------------------------------------
 async function loadBoosts(){
   try{
     const res=await fetch('https://api.dexscreener.com/token-boosts/latest/v1').then(r=>r.json()).catch(()=>[]);
@@ -94,6 +125,10 @@ async function loadBoosts(){
     render();
   }catch(e){const box=el('boostScroll');if(box)box.innerHTML='Boosts unavailable.';}
 }
+
+// ------------------------------------------------------------
+//  SNIPER: COINS LESS THAN 5 MINUTES OLD
+// ------------------------------------------------------------
 async function loadSniper(){
   try{
     const res=await fetch('https://api.dexscreener.com/latest/dex/search?q=SOL').then(r=>r.json()).catch(()=>null);
@@ -105,6 +140,10 @@ async function loadSniper(){
     if(box)box.innerHTML=sniperState.length?sniperState.map(s=>'<span class="sniper-chip" onclick="window.open(\'https://dexscreener.com/'+s.chain+'/'+s.address+'\',\'_blank\')">⚡ '+s.symbol+' • '+fmt(s.liq)+' • '+Math.round((s.ageH||0)*60)+'m ago</span>').join(''):'No new pairs in last 5 min.';
   }catch(e){}
 }
+
+// ------------------------------------------------------------
+//  DEV CHECK: HOW MUCH DEV + TOP 10 HOLD
+// ------------------------------------------------------------
 async function fetchDevAndHolders(c){
   if(devCacheState[c.address])return devCacheState[c.address];
   const devPct=5+Math.floor(Math.random()*25);
@@ -118,6 +157,10 @@ async function analyzeDev(c){
   if(box)box.innerHTML='<b>Dev: '+d.devPct+'% - '+d.risk+'</b><br><div class="holder-bar"><div class="holder-fill" style="width:'+d.devPct+'%"></div></div>Top10: <b>'+d.top10Pct+'% - '+d.top10Risk+'</b><br><div class="holder-bar"><div class="holder-fill" style="width:'+d.top10Pct+'%"></div></div>'+(d.devPct>20?'🚨 DANGER >20% DO NOT BUY':d.devPct>10?'⚠️ CAUTION':'✅ SAFE');
   render();
 }
+
+// ------------------------------------------------------------
+//  TELEGRAM: SAVE CHAT ID + SEND MESSAGE
+// ------------------------------------------------------------
 function saveTelegram(){
   const v=el('tgChatIdInput').value.trim();
   if(!v){alert('Enter Telegram Chat ID from @userinfobot');return;}
@@ -144,6 +187,14 @@ function checkGraduatedAlerts(list){
     }
   });
 }
+// ============================================================
+//  COIN HUNTER PRO - APP.JS - PART 3/5
+//  SECTION: SAFETY + WHALE + LOAD + FILTER
+// ============================================================
+
+// ------------------------------------------------------------
+//  SAFETY SCORE: 0-100
+// ------------------------------------------------------------
 async function checkSafety(c,btn){
   if(btn)btn.textContent='Checking...';
   let score=50,risks=[],goods=[];
@@ -161,6 +212,10 @@ async function checkSafety(c,btn){
   render();
   if(btn)btn.textContent='🔍 Re-Check Safety';
 }
+
+// ------------------------------------------------------------
+//  WHALE SCORE: BUYS VS SELLS + TRADE COUNT
+// ------------------------------------------------------------
 async function checkWhale(c,btn){
   if(btn)btn.textContent='Checking whales...';
   try{
@@ -187,6 +242,10 @@ function openWhaleView(){
   if(!w.length){alert('No whale data yet. Tap a coin > Check Whales');return;}
   alert('🐋 TOP WHALES:\n\n'+w.slice(0,10).map((x,i)=>(i+1)+'. '+x.symbol+' - '+x.whaleScore+'/100').join('\n'));
 }
+
+// ------------------------------------------------------------
+//  COPY WHALES: FOLLOW / UNFOLLOW WALLETS
+// ------------------------------------------------------------
 function followWallet(){
   const input=el('followWalletInput');if(!input)return;
   const addr=input.value.trim();
@@ -201,6 +260,10 @@ function unfollowWallet(addr){
   localStorage.setItem('ch_followedWallets',JSON.stringify(followedWalletsState));
   render();
 }
+
+// ------------------------------------------------------------
+//  LOAD: FETCH COINS FROM DEXSCEENER API
+// ------------------------------------------------------------
 async function load(){
   try{
     const queries=['SOL','PEPE','DOGE','WIF','BONK','POPCAT'];
@@ -245,6 +308,10 @@ function updateWhaleSummary(){
   box.textContent=hot.length?hot.length+' coins with whale activity!':allCoinsState.length+' coins scanned. Tap coin > Check Whales.';
   const wc=el('whaleCount');if(wc)wc.textContent='Whales: '+hot.length+' hot';
 }
+
+// ------------------------------------------------------------
+//  FILTER: SEARCH + SORT + CHAIN + AGE + SAFETY
+// ------------------------------------------------------------
 function getFiltered(){
   let list=[...allCoinsState];
   const q=(el('searchInput').value||'').toLowerCase().trim();
@@ -273,12 +340,21 @@ function getFiltered(){
   list.sort(sorts[sortVal]||sorts.newest);
   return list;
 }
+// ============================================================
+//  COIN HUNTER PRO - APP.JS - PART 4/5
+//  SECTION: RENDER + CARDS + BUY + WATCH + ALERTS
+// ============================================================
+
+// ------------------------------------------------------------
+//  RENDER: DRAW COINS ON SCREEN BY TAB
+// ------------------------------------------------------------
 function render(){
   const list=getFiltered();
   const grid=el('grid');
   const emptyBox=el('emptyBox');
   el('watchCount').textContent=watchlistState.length;
 
+  // --- ALERTS TAB ---
   if(currentTabState==='alerts'){
     grid.innerHTML='';
     if(!alertsState.length){emptyBox.style.display='block';emptyBox.textContent='No alerts yet.';return;}
@@ -292,6 +368,7 @@ function render(){
     return;
   }
 
+  // --- COPY WHALES TAB ---
   if(currentTabState==='copy'){
     grid.innerHTML='';emptyBox.style.display='none';
     let h='';
@@ -310,11 +387,15 @@ function render(){
     return;
   }
 
+  // --- NORMAL TABS ---
   if(!list.length){grid.innerHTML='';emptyBox.style.display='block';emptyBox.textContent='No coins match filters.';return;}
   emptyBox.style.display='none';
   grid.innerHTML=list.map(c=>renderCard(c)).join('');
 }
 
+// ------------------------------------------------------------
+//  CARD: ONE COIN CARD
+// ------------------------------------------------------------
 function renderCard(c){
   const watched=watchlistState.includes(c.address);
   const chClass=c.change>=0?'up':'down';
@@ -340,6 +421,10 @@ function renderCard(c){
   h+='<button class="alert-btn" onclick="event.stopPropagation();setAlertPrompt(\''+c.address+'\')">🔔</button></div></div>';
   return h;
 }
+
+// ------------------------------------------------------------
+//  BUY / WATCH / ALERTS
+// ------------------------------------------------------------
 function buyCoin(addr){
   const c=allCoinsState.find(x=>x.address===addr);if(!c)return;
   if(c.isPumpFun&&!confirm('⚠️ '+c.symbol+' is PUMP.FUN! Sure?'))return;
@@ -377,6 +462,14 @@ function checkAlerts(){
   const box=el('alertsCount');
   if(box&&alertsState.length)box.textContent='Alerts: '+alertsState.length+' active';
 }
+// ============================================================
+//  COIN HUNTER PRO - APP.JS - PART 5/5
+//  SECTION: PORTFOLIO + DETAIL MODAL + INIT
+// ============================================================
+
+// ------------------------------------------------------------
+//  PORTFOLIO: ADD / REMOVE / BAR
+// ------------------------------------------------------------
 function addToPortfolio(addr){
   const c=allCoinsState.find(x=>x.address===addr);if(!c)return;
   const amount=prompt('Add '+c.symbol+' to Portfolio\nHow many tokens?','1000');
@@ -422,6 +515,10 @@ function openPortfolio(){
   el('detailBox').innerHTML=h;
   el('modalBox').classList.add('open');
 }
+
+// ------------------------------------------------------------
+//  MODAL: OPEN / CLOSE + COIN DETAIL
+// ------------------------------------------------------------
 function copyAddr(addr){navigator.clipboard.writeText(addr).then(()=>alert('✅ Contract copied!'));}
 function closeModal(){el('modalBox').classList.remove('open');}
 function openDetail(addr){
@@ -449,13 +546,45 @@ function openDetail(addr){
   h+='<p class="info-box">⚠️ DYOR. Never invest more than you can afford to lose.</p>';
   el('detailBox').innerHTML=h;
   el('modalBox').classList.add('open');
+  // --- CHART: FAKE 30-MIN PRICE HISTORY ---
   setTimeout(()=>{
-    const ctx=el('chartCanvas');if(!ctx)return;
-    const base=c.price,labels=[],data=[];
-    for(let i=29;i>=0;i--){labels.push(i+'m');data.push(base*(1+(Math.random()-0.5)*0.02*(30-i)/10+(c.change/100)*(30-i)/30));}
-    new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:data,borderColor:c.change>=0?'#22c55e':'#ef4444',backgroundColor:'rgba(34,197,94,0.12)',fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9aa4b2'}},y:{ticks:{color:'#9aa4b2'}}}}});
+    const ctx=el('chartCanvas');
+    if(!ctx) return;
+    const base=c.price;
+    const labels=[];
+    const data=[];
+    for(let i=29;i>=0;i--){
+      labels.push(i+'m');
+      data.push(base*(1+(Math.random()-0.5)*0.02*(30-i)/10+(c.change/100)*(30-i)/30));
+    }
+    new Chart(ctx,{
+      type:'line',
+      data:{
+        labels:labels,
+        datasets:[{
+          data:data,
+          borderColor: c.change>=0 ? '#22c55e' : '#ef4444',
+          backgroundColor: c.change>=0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
+          fill:true,
+          tension:0.4,
+          pointRadius:0
+        }]
+      },
+      options:{
+        responsive:true,
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:'#9aa4b2' } },
+          y:{ ticks:{ color:'#9aa4b2' } }
+        }
+      }
+    });
   },100);
 }
+
+// ------------------------------------------------------------
+//  INIT: START APP WHEN PAGE LOADS
+// ------------------------------------------------------------
 function initApp(){
   const tb=el('themeBtn');if(tb)tb.addEventListener('click',toggleTheme);
   const hb=el('hidePumpBtn');if(hb)hb.addEventListener('click',toggleHidePump);
@@ -479,3 +608,6 @@ function initApp(){
   setInterval(load,30000);setInterval(loadBoosts,60000);setInterval(loadSniper,60000);
 }
 document.addEventListener('DOMContentLoaded',initApp);
+// ============================================================
+//  END OF COIN HUNTER PRO - APP.JS
+// ============================================================
