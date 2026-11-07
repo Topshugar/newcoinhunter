@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Hunter Pro</title>
+<link rel="stylesheet" href="/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Coin Hunter Pro</h1>
+    <p>🛡️ Anti-Scam Mode: Pump.fun Hidden</p>
+  </div>
+  <div class="header-btns">
+    <button id="themeBtn">☀️ Light</button>
+    <button onclick="shareApp()">↗ Share App</button>
+  </div>
+</header>
+
+<div class="live-bar">
+  <span class="live-dot"></span> LIVE <span id="lastUpdated">Updating data...</span>
+</div>
+
+<div class="scam-bar">
+  <span id="scamStats">Loading... We hide pump.fun coins because 98% rug.</span>
+  <div class="scam-btns">
+    <button id="hidePumpBtn">🚫 Hide Pump.fun: ON</button>
+    <button id="gradOnlyBtn">✅ Graduated Only: OFF</button>
+    <button onclick="showPumpWarning()">Why Pump.fun = Scam?</button>
+    <button id="gradAlertBtn">🔔 Graduated Alert: OFF</button>
+  </div>
+</div>
+
+<div class="sniper-bar">
+  <b>⚡ SNIPER FEED - Less than 5 MIN OLD</b>
+  <span id="sniperCount">Scanning...</span>
+  <div id="sniperScroll">Scanning new pairs...</div>
+</div>
+
+<div class="tg-bar">
+  <b>📲 TELEGRAM PUSH ALERTS</b>
+  <p>Get alerts even when app is closed. Enter your Telegram Chat ID from @userinfobot.</p>
+  <div class="tg-row">
+    <input id="tgChatIdInput" placeholder="Enter Telegram Chat ID...">
+    <button onclick="saveTelegram()">Save & Test</button>
+  </div>
+  <span id="tgStatus"></span>
+</div>
+
+<div class="boost-bar">
+  <b>🔥 TRENDING BOOSTS</b>
+  <div id="boostScroll">Loading boosts...</div>
+</div>
+
+<div class="portfolio-bar">
+  <div>
+    <b id="portfolioValue">$0.00</b><br>
+    <span id="portfolioPnL">Portfolio: 0 coins</span>
+  </div>
+  <div>
+    <span id="alertsCount">Alerts: 0 active</span><br>
+    <span id="whaleCount">Whales: Checking...</span>
+  </div>
+  <button onclick="openPortfolio()">My Portfolio</button>
+</div>
+
+<div class="whale-bar">
+  <b>🐋 WHALE TRACKER</b>
+  <span id="whaleSummary">Scanning...</span>
+  <button onclick="openWhaleView()">View Whales</button>
+</div>
+
+<div class="controls">
+  <div class="tabs" id="tabsBar">
+    <button class="active" data-tab="new">New</button>
+    <button data-tab="sniper">⚡ Sniper</button>
+    <button data-tab="trending">Trending</button>
+    <button data-tab="boosted">🚀 Boosted</button>
+    <button data-tab="whales">🐋 Whales</button>
+    <button data-tab="graduated">✅ Graduated</button>
+    <button data-tab="copy">👥 Copy Whales</button>
+    <button data-tab="watchlist">Watchlist (<span id="watchCount">0</span>)</button>
+    <button data-tab="alerts">Alerts</button>
+  </div>
+</div>
+
+<div class="controls">
+  <input class="search" id="searchInput" placeholder="Search by name, symbol or contract...">
+  <select id="sortSelect">
+    <option value="newest">Sort: Newest</option>
+    <option value="hottest">Sort: Hottest (24h Change)</option>
+    <option value="liquidity">Sort: Biggest Liquidity</option>
+    <option value="volume">Sort: Biggest Volume 24h</option>
+    <option value="mcap">Sort: Biggest Market Cap</option>
+    <option value="safety">Sort: Safest First</option>
+    <option value="whale">Sort: Most Whale Activity</option>
+  </select>
+</div>
+
+<div class="filters">
+  <label>Min Liquidity $<input type="number" id="minLiqInput" value="0"></label>
+  <label>Min Volume $<input type="number" id="minVolInput" value="0"></label>
+  <label>Chain
+    <select id="chainSelect">
+      <option value="all">All Chains</option>
+      <option value="solana">Solana</option>
+      <option value="bsc">BSC</option>
+      <option value="ethereum">Ethereum</option>
+      <option value="base">Base</option>
+    </select>
+  </label>
+  <label>Max Age (h)<input type="number" id="maxAgeInput" value="72"></label>
+  <label>Min Safety<input type="number" id="minSafetyInput" value="0"></label>
+</div>
+
+<div id="grid" class="grid"></div>
+<div id="emptyBox" class="empty" style="display:none">No coins found.</div>
+
+<div id="modalBox">
+  <div class="sheet">
+    <button class="close" onclick="closeModal()">X</button>
+    <div id="detailBox"></div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
