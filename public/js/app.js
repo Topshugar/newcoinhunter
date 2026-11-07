@@ -1,8 +1,13 @@
 // ============================================================
-//  COIN HUNTER PRO - APP.JS - PART 1/5
-//  SECTION: APP STATE + HELPERS
+//  COIN HUNTER PRO - app.js
+//  PASTE 1 of 3
+//  CONTENTS: State, Helpers, Pump.fun Detection, Acquisition,
+//            Buttons, Boosts, Sniper, Dev Check, Telegram
 // ============================================================
 
+// ------------------------------------------------------------
+//  APP STATE - All data saved in browser localStorage
+// ------------------------------------------------------------
 let allCoinsState = [];
 let boostedState = [];
 let sniperState = [];
@@ -24,12 +29,16 @@ let knownGraduatedState = new Set(JSON.parse(localStorage.getItem('ch_knownGrad'
 let themeState = localStorage.getItem('ch_theme') || 'dark';
 
 // ------------------------------------------------------------
-//  HELPER: GET ELEMENT BY ID
+//  HELPER: Get DOM element by ID
 // ------------------------------------------------------------
 function el(id){ return document.getElementById(id); }
 
 // ------------------------------------------------------------
-//  HELPER: FORMAT AGE / PRICE / MONEY
+//  HELPER: Format age, money and price for display
+//  calcAgeH: Converts pairCreatedAt timestamp to hours ago
+//  fmtAge: 45m ago / 3h ago / 2d ago
+//  fmt: $1.2K / $3.4M / $1.1B
+//  fmtPrice: $0.000123 for small caps, $1.2345 for large caps
 // ------------------------------------------------------------
 function calcAgeH(t){ if(!t) return null; return Math.max(0,(Date.now()-t)/3600000); }
 function fmtAge(h){
@@ -52,7 +61,10 @@ function fmtPrice(p){
 }
 
 // ------------------------------------------------------------
-//  ANTI-SCAM: DETECT PUMP.FUN VS GRADUATED
+//  ANTI-SCAM: Detect Pump.fun vs Graduated
+//  Pump.fun = token still on bonding curve, 98% rug risk
+//  Graduated = migrated to Raydium / Meteora, real DEX liquidity
+//  Logic: Check dexId, URL, then fallback to liquidity + market cap
 // ------------------------------------------------------------
 function detectPumpFun(pair){
   const dex=(pair.dexId||'').toLowerCase();
@@ -74,7 +86,9 @@ function getPumpRisk(c){
 }
 
 // ------------------------------------------------------------
-//  HOW TO BUY: DEX + CEX LINKS
+//  HOW TO BUY: Returns DEX + CEX for each chain
+//  Solana -> Jupiter, BSC -> PancakeSwap, ETH/Base -> Uniswap
+//  Also flags if coin is mineable (BTC, LTC, etc) vs token only
 // ------------------------------------------------------------
 function getAcquisition(c){
   const dexByChain={
@@ -88,13 +102,9 @@ function getAcquisition(c){
   if(mine) return {badge:'MINEABLE',text:c.name+' can be mined.',steps:['Get wallet','Join pool F2Pool','Connect miner'],dexName:d.name,dexUrl:d.url,cex:d.cex};
   return {badge:'NOT MINEABLE',text:c.name+' is a token on '+c.chain+'. Cannot be mined.',steps:['Buy '+(c.chain==='solana'?'SOL':c.chain==='bsc'?'BNB':'ETH'),'Send to wallet','Swap on '+d.name],dexName:d.name,dexUrl:d.url,cex:d.cex};
 }
-// ============================================================
-//  COIN HUNTER PRO - APP.JS - PART 2/5
-//  SECTION: BUTTONS + BOOSTS + SNIPER + TELEGRAM
-// ============================================================
 
 // ------------------------------------------------------------
-//  BUTTONS: THEME / SCAM TOGGLES / SHARE
+//  UI CONTROLS: Theme, Scam Toggles, Share
 // ------------------------------------------------------------
 function updateScamButtons(){
   const h=el('hidePumpBtn'),g=el('gradOnlyBtn'),ga=el('gradAlertBtn');
@@ -112,7 +122,9 @@ function shareApp(){window.open('https://wa.me/?text='+encodeURIComponent('Coin 
 function shareCoin(addr){const c=allCoinsState.find(x=>x.address===addr);if(!c)return;const t=c.name+' ('+c.symbol+') Price $'+c.price+' https://dexscreener.com/'+c.chain+'/'+c.address;window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');}
 
 // ------------------------------------------------------------
-//  BOOSTS: PAID TRENDING COINS FROM DEXSCEENER
+//  BOOSTS: Paid trending coins from DexScreener API
+//  Endpoint: /token-boosts/latest/v1
+//  Shows top 30 boosted tokens in horizontal scroll bar
 // ------------------------------------------------------------
 async function loadBoosts(){
   try{
@@ -127,7 +139,8 @@ async function loadBoosts(){
 }
 
 // ------------------------------------------------------------
-//  SNIPER: COINS LESS THAN 5 MINUTES OLD
+//  SNIPER: Coins created in last 5 minutes
+//  Source: DexScreener search for SOL, filtered by pairCreatedAt
 // ------------------------------------------------------------
 async function loadSniper(){
   try{
@@ -142,7 +155,10 @@ async function loadSniper(){
 }
 
 // ------------------------------------------------------------
-//  DEV CHECK: HOW MUCH DEV + TOP 10 HOLD
+//  DEV CHECK: Dev wallet + Top 10 holders percentage
+//  NOTE: Currently uses estimated values (DexScreener does not
+//  expose holder distribution). >20% dev = HIGH RISK.
+//  TODO: Replace with Solscan / BscScan holder API for real data.
 // ------------------------------------------------------------
 async function fetchDevAndHolders(c){
   if(devCacheState[c.address])return devCacheState[c.address];
@@ -159,7 +175,9 @@ async function analyzeDev(c){
 }
 
 // ------------------------------------------------------------
-//  TELEGRAM: SAVE CHAT ID + SEND MESSAGE
+//  TELEGRAM: Save Chat ID + Send alert via Telegram Bot API
+//  Requires savedTgBotToken + savedTgChatId (from @userinfobot)
+//  Used for price alerts + new graduated coin alerts
 // ------------------------------------------------------------
 function saveTelegram(){
   const v=el('tgChatIdInput').value.trim();
@@ -188,12 +206,16 @@ function checkGraduatedAlerts(list){
   });
 }
 // ============================================================
-//  COIN HUNTER PRO - APP.JS - PART 3/5
-//  SECTION: SAFETY + WHALE + LOAD + FILTER
+//  COIN HUNTER PRO - app.js
+//  PASTE 2 of 3
+//  CONTENTS: Safety Score, Whale Score, Copy Wallets,
+//            Load Coins, Filter, Render, Cards, Buy, Alerts
 // ============================================================
 
 // ------------------------------------------------------------
-//  SAFETY SCORE: 0-100
+//  SAFETY SCORE: 0-100 based on real on-chain signals
+//  +20 Graduated, -50 Pump.fun, +10 High Liq, -20 Low Liq,
+//  +10 High Vol, -10 Age <1h, +10 Age >24h
 // ------------------------------------------------------------
 async function checkSafety(c,btn){
   if(btn)btn.textContent='Checking...';
@@ -214,7 +236,9 @@ async function checkSafety(c,btn){
 }
 
 // ------------------------------------------------------------
-//  WHALE SCORE: BUYS VS SELLS + TRADE COUNT
+//  WHALE SCORE: 0-100 based on 24h trade activity
+//  Source: DexScreener /tokens/{address} -> txns.h24.buys/sells
+//  +20 if >1000 trades, +15 if buys > sells x1.5
 // ------------------------------------------------------------
 async function checkWhale(c,btn){
   if(btn)btn.textContent='Checking whales...';
@@ -244,7 +268,8 @@ function openWhaleView(){
 }
 
 // ------------------------------------------------------------
-//  COPY WHALES: FOLLOW / UNFOLLOW WALLETS
+//  COPY WHALES: Follow / Unfollow wallet addresses
+//  User pastes wallet from DexScreener > Top Traders
 // ------------------------------------------------------------
 function followWallet(){
   const input=el('followWalletInput');if(!input)return;
@@ -262,7 +287,9 @@ function unfollowWallet(addr){
 }
 
 // ------------------------------------------------------------
-//  LOAD: FETCH COINS FROM DEXSCEENER API
+//  LOAD: Fetch coins from DexScreener Search API
+//  Queries 6 trending terms, dedupes by token address, max 40
+//  Enriches each coin with pump.fun status, safety/whale cache
 // ------------------------------------------------------------
 async function load(){
   try{
@@ -309,7 +336,10 @@ function updateWhaleSummary(){
 }
 
 // ------------------------------------------------------------
-//  FILTER: SEARCH + SORT + CHAIN + AGE + SAFETY
+//  FILTER: Applies all user filters + tab + sort
+//  Filters: search, chain, min liq/vol, max age, min safety,
+//           hide pump.fun, graduated only, tab (sniper, watchlist...)
+//  Sorts: newest, hottest, liquidity, volume, mcap, safety, whale
 // ------------------------------------------------------------
 function getFiltered(){
   let list=[...allCoinsState];
@@ -339,16 +369,14 @@ function getFiltered(){
   list.sort(sorts[sortVal]||sorts.newest);
   return list;
 }
-// ============================================================
-//  COIN HUNTER PRO - APP.JS - PART 4/5
-//  SECTION: RENDER + CARDS + BUY + WATCH + ALERTS
-// ============================================================
 
 // ------------------------------------------------------------
-//  RENDER: DRAW COINS ON SCREEN BY TAB
+//  RENDER: Draws coins on screen based on current tab
+//  Handles 3 special tabs: mining, alerts, copy whales
+//  Otherwise renders filtered coin cards via renderCard()
 // ------------------------------------------------------------
 function render(){
-  // --- MINING TAB ---
+  // --- MINING TAB: Show Mining Hub, not coin list ---
   if(currentTabState==='mining'){ renderMining(); return; }
   const list=getFiltered();
   const grid=el('grid');
@@ -395,7 +423,9 @@ function render(){
 }
 
 // ------------------------------------------------------------
-//  CARD: ONE COIN CARD
+//  CARD: Single coin card HTML
+//  Shows name, age, price, change, pump risk, dev %, stats,
+//  Buy / Jupiter / Watch / Alert buttons
 // ------------------------------------------------------------
 function renderCard(c){
   const watched=watchlistState.includes(c.address);
@@ -424,7 +454,11 @@ function renderCard(c){
 }
 
 // ------------------------------------------------------------
-//  BUY / WATCH / ALERTS
+//  BUY / WATCH / ALERTS ACTIONS
+//  buyCoin: Opens DEX with pump.fun confirmation
+//  toggleWatch: Save / unsave coin
+//  setAlertPrompt: Create price alert (above/below current)
+//  checkAlerts: Called on every load(), fires Telegram + browser notification
 // ------------------------------------------------------------
 function buyCoin(addr){
   const c=allCoinsState.find(x=>x.address===addr);if(!c)return;
@@ -464,12 +498,16 @@ function checkAlerts(){
   if(box&&alertsState.length)box.textContent='Alerts: '+alertsState.length+' active';
 }
 // ============================================================
-//  COIN HUNTER PRO - APP.JS - PART 5/5
-//  SECTION: PORTFOLIO + DETAIL MODAL + INIT
+//  COIN HUNTER PRO - app.js
+//  PASTE 3 of 3
+//  CONTENTS: Portfolio, Detail Modal, Real Chart,
+//            Mining Hub, Mining Calculator, Init
 // ============================================================
 
 // ------------------------------------------------------------
-//  PORTFOLIO: ADD / REMOVE / BAR
+//  PORTFOLIO: Track holdings, cost, P/L
+//  addToPortfolio: Prompt qty, save buyPrice = current price
+//  updatePortfolioBar: Re-calculates total value + P/L on every load
 // ------------------------------------------------------------
 function addToPortfolio(addr){
   const c=allCoinsState.find(x=>x.address===addr);if(!c)return;
@@ -518,7 +556,9 @@ function openPortfolio(){
 }
 
 // ------------------------------------------------------------
-//  MODAL: OPEN / CLOSE + COIN DETAIL
+//  MODAL: Coin detail popup
+//  Shows pump check, dev, safety, whale, acquisition steps,
+//  real chart, alerts, portfolio, buy/share buttons
 // ------------------------------------------------------------
 function copyAddr(addr){navigator.clipboard.writeText(addr).then(()=>alert('✅ Contract copied!'));}
 function closeModal(){el('modalBox').classList.remove('open');}
@@ -540,24 +580,42 @@ function openDetail(addr){
   h+='<div class="safety-box"><h3>🔒 Safety</h3><div id="safetyResult">'+(c.safetyScore!=null?'<b>'+c.safetyScore+'/100</b>':'Tap Check Safety')+'</div><button onclick="checkSafety(allCoinsState.find(x=>x.address===\''+c.address+'\'),this)" style="width:100%;padding:10px;background:#eab308;border-radius:10px;margin-top:8px">🔍 Check Safety</button></div>';
   h+='<div class="whale-box"><h3>🐋 Whales</h3><div id="whaleResult">'+(c.whaleScore!=null?'<b>'+c.whaleScore+'/100</b>':'Tap Check Whales')+'</div><button onclick="checkWhale(allCoinsState.find(x=>x.address===\''+c.address+'\'),this)" style="width:100%;padding:10px;background:#38bdf8;color:#fff;border-radius:10px;margin-top:8px">🐋 Check Whales</button></div>';
   h+='<div class="boost-box"><h3>🚀 Boosted?</h3><p>'+(c.isBoosted?'✅ YES':'Not boosted')+'</p></div>';
-  h+='<canvas id="chartCanvas" height="180"></canvas>';
+  h+='<div style="margin:12px 0"><h3>📈 Live Chart</h3><p id="chartStatus" style="font-size:11px;color:#9aa4b2">Loading real chart...</p><canvas id="chartCanvas" height="180"></canvas></div>';
   h+='<div class="alert-box"><button onclick="setAlertPrompt(\''+c.address+'\')" style="width:100%;padding:10px;background:#7c3aed;color:#fff;border-radius:10px">Set Price Alert</button></div>';
   h+='<div class="portfolio-box"><button onclick="addToPortfolio(\''+c.address+'\')" style="width:100%;padding:10px;background:#22c55e;border-radius:10px">+ Add to Portfolio</button></div>';
   h+='<div class="btns" style="margin-top:12px"><button class="buy" onclick="buyCoin(\''+c.address+'\')">Buy on '+acq.dexName+'</button><button class="jupiter-btn" onclick="buyJupiter(\''+c.address+'\')">⚡ Jupiter</button><button class="watch" onclick="shareCoin(\''+c.address+'\')">Share</button><button class="watch" onclick="toggleWatch(\''+c.address+'\')">★ Watch</button></div>';
   h+='<p class="info-box">⚠️ DYOR. Never invest more than you can afford to lose.</p>';
   el('detailBox').innerHTML=h;
   el('modalBox').classList.add('open');
-  // --- CHART: FAKE 30-MIN PRICE HISTORY ---
-  setTimeout(()=>{
-    const ctx=el('chartCanvas');
-    if(!ctx) return;
-    const base=c.price;
-    const labels=[];
-    const data=[];
-    for(let i=29;i>=0;i--){
-      labels.push(i+'m');
-      data.push(base*(1+(Math.random()-0.5)*0.02*(30-i)/10+(c.change/100)*(30-i)/30));
-    }
+  // --- REAL CHART: Load from GeckoTerminal ---
+  setTimeout(()=>{ loadRealChart(c); },100);
+}
+
+// ------------------------------------------------------------
+//  REAL CHART: Fetch real OHLCV from GeckoTerminal API
+//  Endpoint: /networks/{network}/pools/{pool}/ohlcv/hour
+//  Returns [timestamp, open, high, low, close, volume] x 30 candles
+//  Falls back to flat line if coin is too new / no pool data
+// ------------------------------------------------------------
+async function loadRealChart(c){
+  const ctx = el('chartCanvas');
+  const statusEl = el('chartStatus');
+  if(!ctx) return;
+  if(statusEl) statusEl.textContent = 'Loading real chart...';
+  try{
+    const netMap = { solana: 'solana', bsc: 'bsc', ethereum: 'eth', base: 'base' };
+    const network = netMap[c.chain] || 'solana';
+    const pool = c.pairAddress || c.address;
+    const url = 'https://api.geckoterminal.com/api/v2/networks/'+network+'/pools/'+pool+'/ohlcv/hour?aggregate=1&limit=30';
+    const res = await fetch(url).then(r=>r.json()).catch(()=>null);
+    const candles = res?.data?.attributes?.ohlcv_list || [];
+    if(!candles.length) throw new Error('No candles');
+    const labels = candles.map(x=>{
+      const d = new Date(x[0]*1000);
+      return d.getHours()+':00';
+    });
+    const data = candles.map(x=>parseFloat(x[4])); // close price
+    if(statusEl) statusEl.textContent = '✅ Real Data - Last 30 Hours (1h candles) - Source: GeckoTerminal';
     new Chart(ctx,{
       type:'line',
       data:{
@@ -580,16 +638,23 @@ function openDetail(addr){
         }
       }
     });
-  },100);
+  }catch(e){
+    if(statusEl) statusEl.textContent = '⚠️ Real chart unavailable for this coin (new / low liquidity). Showing live price only.';
+    const labels = [];
+    const data = [];
+    for(let i=29;i>=0;i--){ labels.push(i+'m'); data.push(c.price); }
+    new Chart(ctx,{
+      type:'line',
+      data:{ labels:labels, datasets:[{ data:data, borderColor:'#eab308', backgroundColor:'rgba(234,179,8,0.12)', fill:true, tension:0.4, pointRadius:0 }]},
+      options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ x:{ ticks:{ color:'#9aa4b2' } }, y:{ ticks:{ color:'#9aa4b2' } } }}
+    });
+  }
 }
 
-// ============================================================
-//  COIN HUNTER PRO - APP.JS - PART 6/6 - MINING POOL HUB
-//  SECTION: MINEABLE COINS + POOLS + CALCULATOR
-// ============================================================
-
 // ------------------------------------------------------------
-//  MINING DATA: REAL POOLS
+//  MINING POOL HUB: Real mineable coins + real pools
+//  Data: Hardcoded pool list (Foundry, AntPool, F2Pool, ViaBTC...)
+//  Includes best miner hardware per coin
 // ------------------------------------------------------------
 const MINING_DATA = [
   { coin: 'Bitcoin', symbol: 'BTC', algo: 'SHA-256', price: 97500, blockReward: 3.125, pools: [
@@ -620,7 +685,8 @@ const MINING_DATA = [
 ];
 
 // ------------------------------------------------------------
-//  MINING RENDER: SHOW POOLS + CALCULATOR
+//  MINING RENDER: Shows calculator + pool cards + guide
+//  Called from render() when currentTabState === 'mining'
 // ------------------------------------------------------------
 function renderMining(){
   const grid = el('grid');
@@ -653,7 +719,11 @@ function renderMining(){
 }
 
 // ------------------------------------------------------------
-//  MINING CALCULATOR: SIMPLE PROFIT FORMULA
+//  MINING CALCULATOR: Estimate daily / monthly profit
+//  Formula: Gross = dailyCoins * price
+//  Net = Gross - (power_kW * 24h * electricity_cost)
+//  NOTE: Uses simplified difficulty model. TODO: Use live
+//  difficulty + live price from CoinGecko for accuracy.
 // ------------------------------------------------------------
 function calcMining(){
   const coinSel = el('calcCoin'); if(!coinSel) return;
@@ -676,7 +746,9 @@ function calcMining(){
 }
 
 // ------------------------------------------------------------
-//  INIT: START APP WHEN PAGE LOADS
+//  INIT: Start app when page loads
+//  Binds theme buttons, tab buttons, filter inputs, modal close
+//  Starts: load(), loadBoosts(), loadSniper() + auto-refresh timers
 // ------------------------------------------------------------
 function initApp(){
   const tb=el('themeBtn');if(tb)tb.addEventListener('click',toggleTheme);
@@ -702,5 +774,5 @@ function initApp(){
 }
 document.addEventListener('DOMContentLoaded',initApp);
 // ============================================================
-//  END OF COIN HUNTER PRO - APP.JS
+//  END OF COIN HUNTER PRO - app.js
 // ============================================================
