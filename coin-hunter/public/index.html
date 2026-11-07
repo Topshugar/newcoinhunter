@@ -1,3 +1,8 @@
+<!-- ============================================================
+     COIN HUNTER PRO - HTML STRUCTURE
+     Job: Only layout / buttons. NO logic here.
+     Logic lives in /js/app.js
+============================================================ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,6 +14,7 @@
 </head>
 <body>
 
+<!-- ================= HEADER ================= -->
 <header>
   <div>
     <h1>Coin Hunter Pro</h1>
@@ -20,10 +26,12 @@
   </div>
 </header>
 
+<!-- ================= LIVE STATUS ================= -->
 <div class="live-bar">
   <span class="live-dot"></span> LIVE <span id="lastUpdated">Updating data...</span>
 </div>
 
+<!-- ================= ANTI-SCAM CONTROLS ================= -->
 <div class="scam-bar">
   <span id="scamStats">Loading... We hide pump.fun coins because 98% rug.</span>
   <div class="scam-btns">
@@ -34,15 +42,17 @@
   </div>
 </div>
 
+<!-- ================= SNIPER FEED ================= -->
 <div class="sniper-bar">
   <b>⚡ SNIPER FEED - Less than 5 MIN OLD</b>
   <span id="sniperCount">Scanning...</span>
   <div id="sniperScroll">Scanning new pairs...</div>
 </div>
 
+<!-- ================= TELEGRAM ================= -->
 <div class="tg-bar">
   <b>📲 TELEGRAM PUSH ALERTS</b>
-  <p>Get alerts even when app is closed. Enter your Telegram Chat ID from @userinfobot.</p>
+  <p>Get alerts even when app is closed. Enter Chat ID from @userinfobot.</p>
   <div class="tg-row">
     <input id="tgChatIdInput" placeholder="Enter Telegram Chat ID...">
     <button onclick="saveTelegram()">Save & Test</button>
@@ -50,11 +60,13 @@
   <span id="tgStatus"></span>
 </div>
 
+<!-- ================= BOOSTS ================= -->
 <div class="boost-bar">
   <b>🔥 TRENDING BOOSTS</b>
   <div id="boostScroll">Loading boosts...</div>
 </div>
 
+<!-- ================= PORTFOLIO BAR ================= -->
 <div class="portfolio-bar">
   <div>
     <b id="portfolioValue">$0.00</b><br>
@@ -67,12 +79,14 @@
   <button onclick="openPortfolio()">My Portfolio</button>
 </div>
 
+<!-- ================= WHALE TRACKER ================= -->
 <div class="whale-bar">
   <b>🐋 WHALE TRACKER</b>
   <span id="whaleSummary">Scanning...</span>
   <button onclick="openWhaleView()">View Whales</button>
 </div>
 
+<!-- ================= TABS ================= -->
 <div class="controls">
   <div class="tabs" id="tabsBar">
     <button class="active" data-tab="new">New</button>
@@ -87,6 +101,7 @@
   </div>
 </div>
 
+<!-- ================= SEARCH + SORT ================= -->
 <div class="controls">
   <input class="search" id="searchInput" placeholder="Search by name, symbol or contract...">
   <select id="sortSelect">
@@ -100,6 +115,7 @@
   </select>
 </div>
 
+<!-- ================= FILTERS ================= -->
 <div class="filters">
   <label>Min Liquidity $<input type="number" id="minLiqInput" value="0"></label>
   <label>Min Volume $<input type="number" id="minVolInput" value="0"></label>
@@ -116,9 +132,11 @@
   <label>Min Safety<input type="number" id="minSafetyInput" value="0"></label>
 </div>
 
+<!-- ================= COIN GRID ================= -->
 <div id="grid" class="grid"></div>
 <div id="emptyBox" class="empty" style="display:none">No coins found.</div>
 
+<!-- ================= MODAL / POPUP ================= -->
 <div id="modalBox">
   <div class="sheet">
     <button class="close" onclick="closeModal()">X</button>
