@@ -479,5 +479,3 @@ function initApp(){
   setInterval(load,30000);setInterval(loadBoosts,60000);setInterval(loadSniper,60000);
 }
 document.addEventListener('DOMContentLoaded',initApp);
-
-
