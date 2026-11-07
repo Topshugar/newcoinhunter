@@ -44,3 +44,91 @@ header h1 span{color:#22c55e}
 .filters input,.filters select{background:#0b0e14;color:#fff;border:1px solid #232a35;padding:6px;border-radius:8px;width:90px;margin-left:4px}
 </style>
 </head>
+<style>
+.portfolio-bar{background:#151a24;border:1px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.portfolio-bar b{font-size:16px}
+.portfolio-bar span{font-size:12px;color:#9aa4b2}
+.portfolio-bar button{background:#22c55e;border:0;padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+.whale-bar{background:#0f172a;border:1px solid #38bdf8;border-radius:12px;padding:10px 12px;margin-bottom:14px}
+.whale-bar b{font-size:13px;color:#38bdf8}
+.whale-bar span{font-size:12px;color:#9aa4b2}
+.sniper-bar{background:#1a0b2e;border:1px solid #f97316;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.sniper-bar b{font-size:13px;color:#fb923c}
+.sniper-scroll{display:flex;gap:8px;overflow-x:auto;margin-top:8px;padding-bottom:4px}
+.sniper-chip{background:#0b0e14;color:#fff;border:1px solid #f97316;padding:8px 12px;border-radius:20px;white-space:nowrap;cursor:pointer;font-size:12px}
+.telegram-bar{background:#082f49;border:1px solid #0ea5e9;border-radius:12px;padding:10px 12px;margin-bottom:12px}
+.telegram-bar b{font-size:13px;color:#7dd3fc}
+.telegram-bar p{font-size:12px;color:#cbd5e1;margin:4px 0}
+.telegram-bar input{background:#0b0e14;color:#fff;border:1px solid #232a35;padding:8px;border-radius:8px;width:170px}
+.telegram-bar button{background:#0ea5e9;color:#fff;border:0;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.card{background:#151a24;border:1px solid #232a35;border-radius:16px;padding:14px;cursor:pointer;position:relative}
+.card:hover{border-color:#22c55e}
+.card.boosted{border-color:#a855f7}
+.card.pumpfun{border-color:#ef4444}
+.card.sniper{border-color:#f97316}
+.boost-tag{position:absolute;top:10px;right:10px;background:#a855f7;color:#fff;font-size:10px;padding:3px 7px;border-radius:20px;font-weight:700}
+.pump-tag{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;font-size:10px;padding:3px 7px;border-radius:20px;font-weight:700}
+.grad-tag{position:absolute;top:10px;right:10px;background:#22c55e;color:#000;font-size:10px;padding:3px 7px;border-radius:20px;font-weight:700}
+.sniper-tag{position:absolute;top:10px;right:10px;background:#f97316;color:#fff;font-size:10px;padding:3px 7px;border-radius:20px;font-weight:700}
+.top{display:flex;gap:10px;align-items:center}
+.top img{width:40px;height:40px;border-radius:50%;background:#222}
+.top b{font-size:16px}
+.top small{color:#9aa4b2}
+.badge{margin-left:auto;font-size:11px;padding:4px 8px;border-radius:20px;background:#1e293b}
+.badge.hot{background:#7f1d1d;color:#fecaca}
+.badge.new{background:#14532d;color:#bbf7d0}
+.price{font-size:20px;font-weight:800;margin:10px 0 4px}
+.up{color:#22c55e}
+.down{color:#ef4444}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;font-size:13px}
+.stats div{background:#0b0e14;padding:8px;border-radius:10px}
+.stats span{color:#9aa4b2;display:block;font-size:11px}
+.btns{display:flex;gap:8px;margin-top:12px}
+.btns button{flex:1;padding:9px;border:0;border-radius:10px;font-weight:700;cursor:pointer}
+.buy{background:#22c55e}
+.watch{background:#1e293b;color:#fff}
+.watch.saved{background:#eab308;color:#000}
+.alert-btn{background:#7c3aed !important;color:#fff !important}
+.share-btn{background:#25D366 !important;color:#000 !important}
+.jupiter-btn{background:#9945FF !important;color:#fff !important}
+.empty{text-align:center;color:#9aa4b2;padding:40px}
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:flex-end;justify-content:center;z-index:99}
+#modal.open{display:flex}
+.sheet{background:#151a24;width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:18px}
+.sheet h2{font-size:22px}
+.close{float:right;background:#222;border:0;color:#fff;padding:8px 12px;border-radius:50%;cursor:pointer}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.detail-grid div{background:#0b0e14;padding:10px;border-radius:10px;font-size:13px}
+.detail-grid span{color:#9aa4b2;display:block;font-size:11px}
+.contract{display:flex;gap:8px;background:#0b0e14;padding:10px;border-radius:10px;font-size:12px;word-break:break-all;margin:10px 0}
+.contract button{background:#22c55e;border:0;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap}
+canvas{background:#0b0e14;border-radius:12px;padding:8px}
+.acquire,.safety-box,.alert-box,.portfolio-box,.whale-box,.boost-box,.pump-box,.dev-box,.holders-box,.copy-box{background:#0b0e14;border:1px solid #232a35;border-radius:12px;padding:12px;margin:12px 0}
+.acquire{border-color:#22c55e}
+.safety-box{border-color:#eab308}
+.alert-box{border-color:#7c3aed}
+.whale-box{border-color:#38bdf8}
+.boost-box{border-color:#a855f7}
+.pump-box{border-color:#ef4444;background:#450a0a}
+.pump-box.safe{background:#052e16;border-color:#22c55e}
+.dev-box{border-color:#f97316}
+.holders-box{border-color:#ec4899}
+.copy-box{border-color:#38bdf8}
+.acquire h3,.safety-box h3,.alert-box h3,.portfolio-box h3,.whale-box h3,.boost-box h3,.pump-box h3,.dev-box h3,.holders-box h3,.copy-box h3{font-size:15px;margin-bottom:8px}
+.acquire p{font-size:13px;color:#cbd5e1;line-height:1.5}
+.acquire .tag{display:inline-block;background:#14532d;color:#bbf7d0;padding:4px 8px;border-radius:20px;font-size:11px;margin:4px 4px 0 0}
+.acquire .tag.warn{background:#7f1d1d;color:#fecaca}
+.info-box{background:#fef3c7;color:#92400e;padding:10px;border-radius:10px;font-size:12px;line-height:1.5;margin:12px 0}
+.holder-bar{height:10px;background:#1e293b;border-radius:20px;overflow:hidden;margin:4px 0}
+.holder-fill{height:100%;background:#ec4899}
+</style>
+<body>
+<header><h1>Coin Hunter <span>Pro</span></h1><div class="header-btns"><button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️ Light</button><button class="share-top" onclick="shareApp()">↗ Share App</button><div class="live">LIVE</div></div></header>
+<div class="updated" id="lastUpdated">Updating data...</div>
+<div class="scam-banner"><b>🛡️ ANTI-SCAM MODE: Pump.fun Hidden</b><p id="scamStats">Loading... We hide pump.fun coins because 98% rug. Only graduated / real DEX coins shown.</p><div class="toggle-row"><button id="hidePumpBtn" class="toggle-on" onclick="toggleHidePump()">🚫 Hide Pump.fun: ON</button><button id="gradOnlyBtn" class="toggle-off" onclick="toggleGradOnly()">✅ Graduated Only: OFF</button><button onclick="showPumpWarning()" style="background:#ef4444;color:#fff">Why Pump.fun = Scam?</button><button onclick="toggleGradAlert()" id="gradAlertBtn" class="toggle-off">🔔 Graduated Alert: OFF</button></div></div>
+<div class="sniper-bar"><b>⚡ SNIPER FEED - &lt;5 MIN OLD</b> <span style="font-size:11px;color:#9aa4b2" id="sniperCount">Scanning...</span><div class="sniper-scroll" id="sniperScroll"><span style="color:#fff;font-size:12px">Scanning new pairs...</span></div></div>
+<div class="telegram-bar"><b>📲 TELEGRAM PUSH ALERTS</b><p>Get alerts even when app is closed. Enter your Telegram Chat ID (from @userinfobot) or your Bot Token setup.</p><input id="tgChatId" placeholder="Telegram Chat ID e.g. 123456789"><button onclick="saveTelegram()">Save & Test</button><span id="tgStatus" style="font-size:12px;margin-left:8px"></span></div>
+<div class="boost-bar"><b>🔥 TRENDING BOOSTS + X TRENDING</b><div class="boost-scroll" id="boostScroll"><span style="color:#fff;font-size:12px">Loading boosts...</span></div></div>
+<div class="portfolio-bar"><div><b id="portfolioValue">$0.00</b><br><span id="portfolioPnL">Portfolio: 0 coins</span></div><div><span id="alertsCount">Alerts: 0 active</span><br><span id="whaleCount">Whales: Checking...</span></div><button onclick="openPortfolio()">My Portfolio</button></div>
+<div class="whale-bar"><b>🐋 WHALE TRACKER + COPY WHALES</b> <span id="whaleSummary">Scanning...</span> <button onclick="openWhaleView()" style="background:#0ea5e9;color:#fff;border:0;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:12px;float:right">View Whales</button></div>
