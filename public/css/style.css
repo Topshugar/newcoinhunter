@@ -85,3 +85,19 @@ body.light .pump-box,body.light .dev-box,body.light .safety-box,body.light .whal
 .holder-fill{height:100%;background:#f97316}
 .info-box{font-size:12px;color:#9aa4b2;margin-top:12px;text-align:center}
 .boost-chip,.sniper-chip{display:inline-block;background:#1e293b;padding:6px 10px;border-radius:20px;font-size:12px;margin:4px;cursor:pointer}
+
+/* ================= MINING POOL HUB ================= */
+.mining-wrap{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:700px){.mining-wrap{grid-template-columns:1fr}}
+.mining-card{background:#111827;padding:16px;border-radius:14px;border:1px solid #f97316}
+body.light .mining-card{background:#fff}
+.mining-card h3{margin-bottom:8px}
+.pool-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #333;font-size:13px;gap:10px}
+.pool-row b{color:#f97316}
+.pool-row button{background:#f97316;color:#000;padding:6px 12px;border-radius:8px;font-weight:700;white-space:nowrap}
+.calc-box{background:#0b0e14;padding:14px;border-radius:12px;margin-top:10px}
+body.light .calc-box{background:#f1f5f9}
+.calc-box input,.calc-box select{width:100%;padding:10px;border-radius:10px;border:1px solid #333;background:#0b0e14;color:#fff;margin:6px 0}
+body.light .calc-box input,body.light .calc-box select{background:#fff;color:#111}
+.calc-result{font-size:20px;font-weight:800;color:#22c55e;margin-top:10px;text-align:center;line-height:1.5}
+.mine-badge{display:inline-block;background:#f97316;color:#000;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:800}
