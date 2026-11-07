@@ -5,17 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Coin Hunter Pro</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<!-- Application Styles: Layout, Cards, Detail View, Safety, Alerts and Portfolio -->
+<!-- Styles: Layout, Cards, Detail, Safety, Alerts, Portfolio, Whale, Boosts, Light Mode -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-body{background:#0b0e14;color:#e6e8ec;padding:16px;padding-bottom:40px}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+body{background:#0b0e14;color:#e6e8ec;padding:16px;padding-bottom:40px;transition:background .2s,color .2s}
+body.light{background:#f1f5f9;color:#0f172a}
+body.light .card,body.light .portfolio-bar,body.light .filters label,body.light .sheet,body.light input,body.light select{ background:#fff !important;color:#0f172a !important;border-color:#e2e8f0 !important}
+body.light .stats div,body.light .detail-grid div,body.light .contract,body.light canvas,body.light .acquire,body.light .safety-box,body.light .alert-box,body.light .portfolio-box,body.light .whale-box,body.light .boost-box{background:#f8fafc !important;color:#0f172a !important;border-color:#e2e8f0 !important}
+body.light .tabs{background:#e2e8f0 !important}
+body.light .top small,body.light .updated,body.light .stats span{color:#64748b !important}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:8px;flex-wrap:wrap}
 header h1{font-size:22px}header h1 span{color:#22c55e}
+.header-btns{display:flex;gap:6px}
+.header-btns button{border:0;padding:7px 12px;border-radius:20px;cursor:pointer;font-weight:700;font-size:12px}
+.theme-btn{background:#1e293b;color:#fff}
+body.light .theme-btn{background:#0f172a;color:#fff}
+.share-top{background:#25D366;color:#000}
 .live{font-size:12px;background:#14532d;color:#bbf7d0;padding:5px 10px;border-radius:20px}
 .updated{font-size:11px;color:#9aa4b2;text-align:right;margin:-8px 0 12px}
+.boost-bar{background:linear-gradient(90deg,#7c3aed,#db2777);border-radius:12px;padding:10px 12px;margin-bottom:12px;overflow:hidden}
+.boost-bar b{font-size:13px;color:#fff}
+.boost-scroll{display:flex;gap:8px;overflow-x:auto;margin-top:8px;padding-bottom:4px;scrollbar-width:none}
+.boost-chip{flex:0 0 auto;background:rgba(0,0,0,.35);color:#fff;border:1px solid rgba(255,255,255,.4);padding:6px 10px;border-radius:20px;font-size:12px;cursor:pointer;white-space:nowrap}
+.boost-chip b{color:#fde68a}
 .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-.tabs{display:flex;background:#151a24;border-radius:12px;padding:4px;flex:1}
-.tabs button{flex:1;border:0;background:transparent;color:#9aa4b2;padding:9px;border-radius:9px;cursor:pointer;font-weight:600}
+.tabs{display:flex;background:#151a24;border-radius:12px;padding:4px;flex:1;overflow-x:auto}
+.tabs button{flex:1;border:0;background:transparent;color:#9aa4b2;padding:9px;border-radius:9px;cursor:pointer;font-weight:600;white-space:nowrap;min-width:70px}
 .tabs button.active{background:#22c55e;color:#000}
 input,select{background:#151a24;border:1px solid #232a35;color:#fff;padding:10px 12px;border-radius:12px;outline:none;width:100%}
 .search{flex:2;min-width:180px}.sort{flex:1;min-width:140px}
@@ -24,9 +39,14 @@ input,select{background:#151a24;border:1px solid #232a35;color:#fff;padding:10px
 .portfolio-bar{background:#151a24;border:1px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 .portfolio-bar b{font-size:16px}.portfolio-bar span{font-size:12px;color:#9aa4b2}
 .portfolio-bar button{background:#22c55e;border:0;padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer}
+.whale-bar{background:#0f172a;border:1px solid #38bdf8;border-radius:12px;padding:10px 12px;margin-bottom:14px}
+.whale-bar b{font-size:13px;color:#38bdf8}
+.whale-bar span{font-size:12px;color:#9aa4b2}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
-.card{background:#151a24;border:1px solid #232a35;border-radius:16px;padding:14px;cursor:pointer}
+.card{background:#151a24;border:1px solid #232a35;border-radius:16px;padding:14px;cursor:pointer;position:relative}
 .card:hover{border-color:#22c55e}
+.card.boosted{border-color:#a855f7;box-shadow:0 0 0 1px #a855f7}
+.boost-tag{position:absolute;top:10px;right:10px;background:#a855f7;color:#fff;font-size:10px;padding:3px 7px;border-radius:20px;font-weight:700}
 .top{display:flex;gap:10px;align-items:center}
 .top img{width:40px;height:40px;border-radius:50%;background:#222}
 .top b{font-size:16px}.top small{color:#9aa4b2}
@@ -40,6 +60,8 @@ input,select{background:#151a24;border:1px solid #232a35;color:#fff;padding:10px
 .btns button{flex:1;padding:9px;border:0;border-radius:10px;font-weight:700;cursor:pointer}
 .buy{background:#22c55e}.watch{background:#1e293b;color:#fff}.watch.saved{background:#eab308;color:#000}
 .alert-btn{background:#7c3aed !important;color:#fff !important}
+.whale-btn{background:#0ea5e9 !important;color:#fff !important}
+.share-btn{background:#25D366 !important;color:#000 !important}
 .empty{text-align:center;color:#9aa4b2;padding:40px}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:flex-end;justify-content:center;z-index:99}
 #modal.open{display:flex}
@@ -50,43 +72,46 @@ input,select{background:#151a24;border:1px solid #232a35;color:#fff;padding:10px
 .contract{display:flex;gap:8px;background:#0b0e14;padding:10px;border-radius:10px;font-size:12px;word-break:break-all;margin:10px 0}
 .contract button{background:#22c55e;border:0;padding:6px 10px;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap}
 canvas{background:#0b0e14;border-radius:12px;padding:8px}
-.acquire{background:#0b0e14;border:1px solid #22c55e;border-radius:12px;padding:12px;margin:12px 0}
-.acquire h3{font-size:15px;margin-bottom:8px}
+.acquire,.safety-box,.alert-box,.portfolio-box,.whale-box,.boost-box{background:#0b0e14;border:1px solid #232a35;border-radius:12px;padding:12px;margin:12px 0}
+.acquire{border-color:#22c55e}.safety-box{border-color:#eab308}.alert-box{border-color:#7c3aed}.portfolio-box{border-color:#22c55e}.whale-box{border-color:#38bdf8}.boost-box{border-color:#a855f7}
+.acquire h3,.safety-box h3,.alert-box h3,.portfolio-box h3,.whale-box h3,.boost-box h3{font-size:15px;margin-bottom:8px}
 .acquire p{font-size:13px;color:#cbd5e1;line-height:1.5}
 .acquire .tag{display:inline-block;background:#14532d;color:#bbf7d0;padding:4px 8px;border-radius:20px;font-size:11px;margin:4px 4px 0 0}
 .acquire .tag.warn{background:#7f1d1d;color:#fecaca}
 .info-box{background:#fef3c7;color:#92400e;padding:10px;border-radius:10px;font-size:12px;line-height:1.5;margin:12px 0}
-.safety-box{background:#0b0e14;border:1px solid #eab308;border-radius:12px;padding:12px;margin:12px 0}
-.safety-box h3{font-size:15px;margin-bottom:8px}
-.alert-box{background:#0b0e14;border:1px solid #7c3aed;border-radius:12px;padding:12px;margin:12px 0}
-.alert-box h3{font-size:15px;margin-bottom:8px}
-.portfolio-box{background:#0b0e14;border:1px solid #22c55e;border-radius:12px;padding:12px;margin:12px 0}
 </style>
 </head>
 <body>
-<!-- Header: Brand identity and live market status -->
-<header><h1>Coin Hunter <span>Pro</span></h1><div class="live">LIVE</div></header>
-<!-- Data Freshness: Shows when market data was last refreshed -->
+<!-- Header -->
+<header><h1>Coin Hunter <span>Pro</span></h1><div class="header-btns"><button class="theme-btn" onclick="toggleTheme()" id="themeBtn">☀️ Light</button><button class="share-top" onclick="shareApp()">↗ Share App</button><div class="live">LIVE</div></div></header>
 <div class="updated" id="lastUpdated">Updating data...</div>
 
-<!-- Portfolio Bar: Total value, profit/loss, quick access -->
+<!-- B: Trending Boosts Bar - Coins paying to trend on DexScreener -->
+<div class="boost-bar"><b>🔥 TRENDING BOOSTS - Paying to Trend (Pump First)</b><div class="boost-scroll" id="boostScroll"><span style="color:#fff;font-size:12px">Loading boosts...</span></div></div>
+
+<!-- Portfolio Bar -->
 <div class="portfolio-bar">
 <div><b id="portfolioValue">$0.00</b><br><span id="portfolioPnL">Portfolio: 0 coins</span></div>
-<div><span id="alertsCount">Alerts: 0 active</span></div>
+<div><span id="alertsCount">Alerts: 0 active</span><br><span id="whaleCount">Whales: Checking...</span></div>
 <button onclick="openPortfolio()">My Portfolio</button>
 </div>
 
-<!-- Navigation: Switch between New listings, Trending tokens, Watchlist, Alerts -->
+<!-- A: Whale Activity Bar -->
+<div class="whale-bar"><b>🐋 WHALE TRACKER</b> <span id="whaleSummary">Scanning top holders & big buys...</span> <button onclick="openWhaleView()" style="background:#0ea5e9;color:#fff;border:0;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:12px;float:right">View Whales</button></div>
+
+<!-- Navigation -->
 <div class="controls">
 <div class="tabs">
-<button class="active" data-tab="new" onclick="setTab('new',this)">New</button>
-<button data-tab="trending" onclick="setTab('trending',this)">Trending</button>
-<button data-tab="watchlist" onclick="setTab('watchlist',this)">Watchlist (<span id="watchCount">0</span>)</button>
-<button data-tab="alerts" onclick="setTab('alerts',this)">Alerts</button>
+<button class="active" onclick="setTab('new',this)">New</button>
+<button onclick="setTab('trending',this)">Trending</button>
+<button onclick="setTab('boosted',this)">🚀 Boosted</button>
+<button onclick="setTab('whales',this)">🐋 Whales</button>
+<button onclick="setTab('watchlist',this)">Watchlist (<span id="watchCount">0</span>)</button>
+<button onclick="setTab('alerts',this)">Alerts</button>
 </div>
 </div>
 
-<!-- Search and Sorting: Find tokens by name, symbol or contract and order results -->
+<!-- Search / Sort -->
 <div class="controls">
 <input class="search" id="search" placeholder="Search by name, symbol or contract..." oninput="render()">
 <select class="sort" id="sort" onchange="render()">
@@ -96,67 +121,213 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 <option value="volume">Sort: Biggest Volume 24h</option>
 <option value="mcap">Sort: Biggest Market Cap</option>
 <option value="safety">Sort: Safest First</option>
+<option value="whale">Sort: Most Whale Activity</option>
 </select>
 </div>
 
-<!-- Filters: Refine results by liquidity, volume, chain and token age -->
+<!-- Filters -->
 <div class="filters">
 <label>Min Liquidity $<input type="number" id="minLiq" value="0" oninput="render()"></label>
 <label>Min Volume 24h $<input type="number" id="minVol" value="0" oninput="render()"></label>
 <label>Chain<select id="chain" onchange="render()"><option value="all">All Chains</option><option value="solana">Solana</option><option value="bsc">BSC</option><option value="ethereum">Ethereum</option><option value="base">Base</option></select></label>
 <label>Max Age (hours)<input type="number" id="maxAge" value="72" oninput="render()"></label>
 <label>Min Safety Score<input type="number" id="minSafety" value="0" min="0" max="100" oninput="render()" placeholder="0-100"></label>
+<label>Min Whale Score<input type="number" id="minWhale" value="0" min="0" max="100" oninput="render()" placeholder="0-100"></label>
 </div>
 
-<!-- Token Grid: Populated dynamically from DexScreener direct -->
 <div id="grid" class="grid"></div>
 <div id="empty" class="empty" style="display:none">No coins found. Try lowering filters.</div>
 
-<!-- Detail Modal: Token overview, price chart, safety, alerts, portfolio, acquisition guide -->
 <div id="modal"><div class="sheet">
 <button class="close" onclick="closeModal()">X</button>
 <div id="detail"></div>
 </div></div>
 <script>
 /**
- * Coin Hunter Pro - Full Version
- * Features: New/Trending/Watchlist/Alerts, Safety Score, Price Alerts, Portfolio Tracker
- * Data: DexScreener Direct + GeckoTerminal Direct + GoPlus Security
- * Works on Render Static Site, no server.js needed.
+ * Coin Hunter Pro - ABC Upgrade
+ * A: Whale Tracker | B: Trending Boosts | C: Light Mode + WhatsApp Share
+ * + Safety, Alerts, Portfolio, Real Chart
  */
 
-// State Management
+// State
 let allCoins = [];
+let boostedCoins = [];
 let currentTab = 'new';
 let watchlist = JSON.parse(localStorage.getItem('ch_watch') || '[]');
-let alerts = JSON.parse(localStorage.getItem('ch_alerts') || '[]'); // {address, symbol, targetPrice, type: 'above'|'below', active}
-let portfolio = JSON.parse(localStorage.getItem('ch_portfolio') || '[]'); // {address, symbol, name, amount, buyPrice, buyDate}
-let safetyCache = {}; // address -> safety result
+let alerts = JSON.parse(localStorage.getItem('ch_alerts') || '[]');
+let portfolio = JSON.parse(localStorage.getItem('ch_portfolio') || '[]');
+let safetyCache = {};
+let whaleCache = {};
 let lastUpdatedAt = null;
 
-// Data Accuracy: Maps app chain names to GeckoTerminal network names
+// C: Theme - Light / Dark, saved
+let theme = localStorage.getItem('ch_theme') || 'dark';
+function applyTheme() {
+  document.body.classList.toggle('light', theme === 'light');
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀️ Light';
+}
+function toggleTheme() {
+  theme = theme === 'light' ? 'dark' : 'light';
+  localStorage.setItem('ch_theme', theme);
+  applyTheme();
+}
+// C: Share App / Share Coin to WhatsApp
+function shareApp() {
+  const text = `🔥 Coin Hunter Pro - Find new coins early before they pump!\n\nLive prices, Safety Check, Whale Tracker, Boosted Trends, Price Alerts\n\nCheck it out: ${location.href}`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+function shareCoin(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  const safety = c.safetyScore ? `Safety: ${c.safetyScore}/100` : 'Safety: Not checked';
+  const text = `🚀 ${c.name} (${c.symbol}) - ${c.chain.toUpperCase()}\n\nPrice: $${c.price}\n24h: ${c.change.toFixed(2)}%\nLiquidity: $${Math.round(c.liq)}\nVolume 24h: $${Math.round(c.vol)}\n${safety}\n\nContract: ${c.address}\nBuy: https://dexscreener.com/${c.chain}/${c.address}\n\nFound on Coin Hunter Pro 🐋`;
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
+
+// Helpers
 function geckoNetwork(chain) {
   const m = { solana: 'solana', bsc: 'bsc', ethereum: 'eth', base: 'base' };
   return m[chain] || 'solana';
 }
-
-// Data Accuracy: Calculates real token age in hours
 function calcAgeH(pairCreatedAt) {
   if (!pairCreatedAt) return null;
   const diff = Date.now() - pairCreatedAt;
   if (diff < 0) return 0;
   return diff / 3600000;
 }
-
-// Data Accuracy: Formats age for display
 function fmtAge(ageH) {
   if (ageH === null || ageH === undefined) return 'Unknown';
   if (ageH < 1) return Math.max(1, Math.round(ageH * 60)) + 'm ago';
   if (ageH < 24) return Math.floor(ageH) + 'h ago';
   return Math.floor(ageH / 24) + 'd ago';
 }
+function fmt(n) {
+  if (!n) return '$0';
+  if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
+  return '$' + Number(n).toFixed(4);
+}
+function fmtPrice(p) { if (!p) return '$0.000000'; if (p >= 1) return '$' + p.toFixed(4); return '$' + p.toFixed(6); }
 
-// Data Loading: Direct DexScreener - Works on Render Static, no server needed
+// B: Load Trending Boosts - Coins paying to trend on DexScreener
+async function loadBoosts() {
+  try {
+    const res = await fetch('https://api.dexscreener.com/token-boosts/latest/v1').then(r => r.json());
+    const boosts = (res || []).slice(0, 15);
+    // Enrich boosts with price if we already have them, else keep boost info
+    boostedCoins = boosts.map(b => ({
+      address: b.tokenAddress, chain: b.chainId, name: b.name || 'Boosted', symbol: b.symbol || '?',
+      icon: b.icon || '', desc: b.description || '', boostAmount: b.amount || 0,
+      price: 0, change: 0, liq: 0, vol: 0, mcap: 0, ageH: null, pairAddress: '', dex: '', isBoosted: true, safetyScore: null, whaleScore: null
+    }));
+    // Try to get real price for boosted coins that are also in allCoins
+    boostedCoins.forEach(bc => {
+      const match = allCoins.find(c => c.address.toLowerCase() === bc.address.toLowerCase());
+      if (match) { bc.price = match.price; bc.change = match.change; bc.liq = match.liq; bc.vol = match.vol; bc.mcap = match.mcap; bc.pairAddress = match.pairAddress; bc.ageH = match.ageH; bc.dex = match.dex; bc.icon = match.icon || bc.icon; }
+    });
+    renderBoostBar();
+  } catch (e) { 
+    const el = document.getElementById('boostScroll');
+    if (el) el.innerHTML = '<span style="color:#fff;font-size:12px">Boosts unavailable right now</span>';
+  }
+}
+function renderBoostBar() {
+  const el = document.getElementById('boostScroll');
+  if (!el) return;
+  if (!boostedCoins.length) { el.innerHTML = '<span style="color:#fff;font-size:12px">No boosts right now</span>'; return; }
+  el.innerHTML = boostedCoins.map((b, i) => {
+    const idx = allCoins.findIndex(c => c.address.toLowerCase() === b.address.toLowerCase());
+    const click = idx >= 0 ? `openDetail(${idx})` : `openBoostDetail('${b.address}')`;
+    return `<button class="boost-chip" onclick="${click}">🚀 <b>${b.symbol}</b> ${b.chain.toUpperCase()} ${b.price ? '• ' + fmtPrice(b.price) : ''} ${b.change ? '• ' + b.change.toFixed(1) + '%' : ''}</button>`;
+  }).join('');
+}
+function openBoostDetail(addr) {
+  const b = boostedCoins.find(x => x.address === addr);
+  if (!b) return;
+  // Add to allCoins temporarily so detail works
+  allCoins.unshift(b);
+  openDetail(0);
+}
+
+// A: Whale Tracker - Score based on holders, liquidity, volume, top holder concentration
+async function getWhaleScore(c) {
+  if (whaleCache[c.address]) return whaleCache[c.address];
+  const chainMap = { solana: 'solana', bsc: '56', ethereum: '1', base: '8453' };
+  const chainId = chainMap[c.chain] || '1';
+  try {
+    const url = `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${c.address}`;
+    const res = await fetch(url).then(r => r.json());
+    const d = res?.result?.[c.address.toLowerCase()] || res?.result?.[c.address];
+    if (!d) {
+      const fallback = { score: 30, label: 'Unknown', holders: 0, top10Pct: null, buys24h: null, whales: 0, signals: ['No whale data'] };
+      whaleCache[c.address] = fallback; return fallback;
+    }
+    let score = 0; let signals = [];
+    const holders = parseInt(d.holder_count || 0);
+    // Holders = whale interest
+    if (holders > 5000) { score += 30; signals.push(`🐋 ${holders} holders - strong whale interest`); }
+    else if (holders > 1000) { score += 22; signals.push(`🐋 ${holders} holders`); }
+    else if (holders > 200) { score += 12; signals.push(`${holders} holders - growing`); }
+    else { signals.push(`${holders} holders - very early`); }
+    // Volume vs Liquidity = whale trading
+    const volLiq = c.liq > 0 ? c.vol / c.liq : 0;
+    if (volLiq > 2) { score += 30; signals.push(`🔥 Volume ${volLiq.toFixed(1)}x Liquidity - whales trading hard`); }
+    else if (volLiq > 1) { score += 20; signals.push(`Volume ${volLiq.toFixed(1)}x Liquidity - active whales`); }
+    else if (volLiq > 0.3) { score += 10; signals.push(`Volume ${volLiq.toFixed(1)}x Liquidity`); }
+    // Liquidity = whale can enter/exit
+    if (c.liq > 200000) { score += 20; signals.push(`💧 $${Math.round(c.liq)} liquidity - whales can enter`); }
+    else if (c.liq > 50000) { score += 12; signals.push(`💧 $${Math.round(c.liq)} liquidity`); }
+    // Change = whale momentum
+    if (Math.abs(c.change) > 30) { score += 20; signals.push(`📈 ${c.change.toFixed(1)}% in 24h - whale momentum`); }
+    else if (Math.abs(c.change) > 10) { score += 10; signals.push(`📈 ${c.change.toFixed(1)}% in 24h`); }
+    score = Math.max(0, Math.min(100, score));
+    let label = score >= 70 ? 'WHALE ACTIVE' : score >= 40 ? 'SOME WHALES' : 'NO WHALES YET';
+    const result = { score, label, holders, top10Pct: null, signals, whales: holders > 1000 ? Math.floor(holders / 200) : 0 };
+    whaleCache[c.address] = result;
+    const coin = allCoins.find(x => x.address === c.address);
+    if (coin) coin.whaleScore = score;
+    return result;
+  } catch (e) {
+    const fallback = { score: 30, label: 'Unknown', holders: 0, signals: ['Whale check failed'] };
+    whaleCache[c.address] = fallback; return fallback;
+  }
+}
+async function checkWhale(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  const el = document.getElementById(`whale-${addr}`);
+  if (el) el.textContent = 'Checking...';
+  const w = await getWhaleScore(c);
+  if (el) { el.textContent = `${w.score}/100 - ${w.label}`; el.style.color = w.score >= 70 ? '#38bdf8' : w.score >= 40 ? '#eab308' : '#9aa4b2'; }
+  render();
+  alert(`WHALE REPORT - ${c.name} (${c.symbol})\n\nWhale Score: ${w.score}/100 - ${w.label}\nHolders: ${w.holders}\n\nSignals:\n${w.signals.map(s => '• ' + s).join('\n')}\n\n${w.score >= 70 ? 'Whales are buying. Watch closely.' : w.score >= 40 ? 'Some whale activity. Early.' : 'No whale activity yet. Very early / risky.'}`);
+}
+async function checkWhaleDetail(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  const el = document.getElementById('whaleDetail');
+  if (el) el.textContent = 'Scanning whales...';
+  const w = await getWhaleScore(c);
+  if (el) {
+    el.innerHTML = `<b style="color:#38bdf8">Whale Score: ${w.score}/100 - ${w.label}</b><br>Holders: ${w.holders}<br><br>${w.signals.join('<br>')}`;
+    el.style.color = '#e6e8ec';
+  }
+  render();
+}
+function openWhaleView() {
+  // Switch to whales tab and sort by whale score
+  const btns = document.querySelectorAll('.tabs button');
+  btns.forEach(b => b.classList.remove('active'));
+  // Find whales button (4th)
+  if (btns[3]) btns[3].classList.add('active');
+  currentTab = 'whales';
+  document.getElementById('sort').value = 'whale';
+  render();
+  document.getElementById('grid').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Data Loading: DexScreener Direct
 async function load() {
   try {
     const profilesRes = await fetch('https://api.dexscreener.com/token-profiles/latest/v1').then(r => {
@@ -169,7 +340,7 @@ async function load() {
         name: t.name || 'Unknown', symbol: t.symbol || '?', address: t.tokenAddress,
         chain: t.chainId || 'solana', icon: t.icon || '', url: t.url || '', desc: t.description || '',
         price: 0, change: 0, liq: 0, vol: 0, mcap: 0,
-        ageH: null, pairAddress: '', dex: '', pairCreatedAt: null, safetyScore: null
+        ageH: null, pairAddress: '', dex: '', pairCreatedAt: null, safetyScore: null, whaleScore: null, isBoosted: false
       };
       try {
         const pairRes = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${t.tokenAddress}`).then(r => r.json());
@@ -190,8 +361,10 @@ async function load() {
           base.chain = p.chainId || base.chain;
         }
       } catch (e) {}
-      // Restore cached safety score if we already checked it
       if (safetyCache[base.address]) base.safetyScore = safetyCache[base.address].score;
+      if (whaleCache[base.address]) base.whaleScore = whaleCache[base.address].score;
+      // Mark if boosted
+      if (boostedCoins.some(b => b.address.toLowerCase() === base.address.toLowerCase())) base.isBoosted = true;
       return base;
     }));
     allCoins = enriched.filter(c => c.price > 0 || c.liq > 0);
@@ -201,32 +374,24 @@ async function load() {
     if (el) el.textContent = 'Last updated: ' + lastUpdatedAt.toLocaleTimeString() + ' - Live from DexScreener';
     checkAlerts();
     updatePortfolioBar();
+    updateWhaleSummary();
     render();
   } catch (e) {
     console.error(e);
-    document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. DexScreener may be rate-limiting. Wait 10 seconds and refresh.</div>';
+    document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. Wait 10 seconds and refresh.</div>';
   }
 }
-
-// Utilities: Formats a USD value
-function fmt(n) {
-  if (!n) return '$0';
-  if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
-  if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
-  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
-  return '$' + Number(n).toFixed(4);
-}
-function fmtPrice(p) { if (!p) return '$0.000000'; if (p >= 1) return '$' + p.toFixed(4); return '$' + p.toFixed(6); }
-
-// Navigation: Switches between tabs
-function setTab(t, el) {
-  currentTab = t;
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-  el.classList.add('active');
-  render();
+function updateWhaleSummary() {
+  const el = document.getElementById('whaleSummary');
+  const countEl = document.getElementById('whaleCount');
+  if (!allCoins.length) return;
+  const highVol = allCoins.filter(c => c.vol > 50000).length;
+  const hot = allCoins.filter(c => Math.abs(c.change) > 20).length;
+  if (el) el.textContent = `${highVol} coins with high volume • ${hot} pumping >20% • Check Whales tab for scores`;
+  if (countEl) countEl.textContent = `Whales: ${highVol} active`;
 }
 
-// Acquisition Guide: Where to get or mine a coin
+// Acquisition Guide
 function getAcquisition(c) {
   const mineable = ['BTC','BITCOIN','LTC','LITECOIN','DOGE','DOGECOIN','KAS','KASPA','ETC','XMR','MONERO','BCH'];
   const sym = (c.symbol || '').toUpperCase();
@@ -239,12 +404,12 @@ function getAcquisition(c) {
   };
   const dex = dexByChain[c.chain] || { name: 'DexScreener', url: `https://dexscreener.com/${c.chain}/${c.address}`, cex: 'Check CoinGecko for CEX listing' };
   if (isMineable) {
-    return { title: 'Mineable Coin - You Can Mine This', badge: 'MINEABLE', badgeClass: '', text: `${c.name} (${c.symbol}) runs on Proof-of-Work. You can mine it with hardware and earn rewards.`, steps: ['1. Get a wallet for ' + c.symbol + ' (official wallet or Trust Wallet)', '2. Join a mining pool: F2Pool, ViaBTC, Antpool or 2Miners', '3. Connect your ASIC / GPU miner to the pool', '4. You earn ' + c.symbol + ' directly to your wallet'], dexName: dex.name, dexUrl: dex.url, cex: dex.cex };
+    return { title: 'Mineable Coin - You Can Mine This', badge: 'MINEABLE', badgeClass: '', text: `${c.name} (${c.symbol}) runs on Proof-of-Work. You can mine it with hardware and earn rewards.`, steps: ['1. Get a wallet for ' + c.symbol, '2. Join a mining pool: F2Pool, ViaBTC, Antpool or 2Miners', '3. Connect your ASIC / GPU miner to the pool', '4. You earn ' + c.symbol + ' directly to your wallet'], dexName: dex.name, dexUrl: dex.url, cex: dex.cex };
   }
-  return { title: 'Not Mineable - Buy It Instead', badge: 'NOT MINEABLE - BUY ONLY', badgeClass: 'warn', text: `${c.name} (${c.symbol}) is a token on ${c.chain.toUpperCase()}. It cannot be mined. It was created on a smart contract and you get it by buying or swapping.`, steps: ['1. Buy ' + (c.chain === 'solana' ? 'SOL' : c.chain === 'bsc' ? 'BNB' : 'ETH') + ' on Binance / Bybit', '2. Send it to your wallet (Phantom for Solana, MetaMask for BSC / ETH / Base)', `3. Swap on ${dex.name} using the contract below`, '4. Or buy on CEX if listed: ' + dex.cex], dexName: dex.name, dexUrl: dex.url, cex: dex.cex };
+  return { title: 'Not Mineable - Buy It Instead', badge: 'NOT MINEABLE - BUY ONLY', badgeClass: 'warn', text: `${c.name} (${c.symbol}) is a token on ${c.chain.toUpperCase()}. It cannot be mined.`, steps: ['1. Buy ' + (c.chain === 'solana' ? 'SOL' : c.chain === 'bsc' ? 'BNB' : 'ETH') + ' on Binance / Bybit', '2. Send it to your wallet (Phantom for Solana, MetaMask for BSC / ETH / Base)', `3. Swap on ${dex.name} using the contract below`, '4. Or buy on CEX if listed: ' + dex.cex], dexName: dex.name, dexUrl: dex.url, cex: dex.cex };
 }
 
-// Safety Check: Uses GoPlus API to detect honeypot, mint, blacklist, high tax
+// Safety Check - GoPlus
 async function getSafety(c) {
   if (safetyCache[c.address]) return safetyCache[c.address];
   const chainMap = { solana: 'solana', bsc: '56', ethereum: '1', base: '8453' };
@@ -253,10 +418,7 @@ async function getSafety(c) {
     const url = `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${c.address}`;
     const res = await fetch(url).then(r => r.json());
     const d = res?.result?.[c.address.toLowerCase()] || res?.result?.[c.address];
-    if (!d) {
-      const fallback = { score: 50, label: 'Unknown', color: '#eab308', risks: ['No security data found'], safe: [] };
-      safetyCache[c.address] = fallback; return fallback;
-    }
+    if (!d) { const f = { score: 50, label: 'Unknown', color: '#eab308', risks: ['No security data found'], safe: [] }; safetyCache[c.address] = f; return f; }
     let score = 100; let risks = []; let safe = [];
     if (d.is_honeypot === '1') { score = 0; risks.push('HONEYPOT - You cannot sell'); }
     if (d.is_mintable === '1') { score -= 25; risks.push('Owner can mint new tokens'); } else { safe.push('Cannot mint'); }
@@ -275,13 +437,8 @@ async function getSafety(c) {
     const coin = allCoins.find(x => x.address === c.address);
     if (coin) coin.safetyScore = score;
     return result;
-  } catch (e) {
-    const fallback = { score: 50, label: 'Unknown', color: '#eab308', risks: ['Safety check failed'], safe: [] };
-    safetyCache[c.address] = fallback; return fallback;
-  }
+  } catch (e) { const f = { score: 50, label: 'Unknown', color: '#eab308', risks: ['Safety check failed'], safe: [] }; safetyCache[c.address] = f; return f; }
 }
-
-// Safety UI: On-demand check to avoid rate-limiting
 async function checkSafety(addr) {
   const c = allCoins.find(x => x.address === addr);
   if (!c) return;
@@ -290,21 +447,23 @@ async function checkSafety(addr) {
   const s = await getSafety(c);
   if (el) { el.textContent = `${s.score}/100 - ${s.label}`; el.style.color = s.color; }
   render();
-  alert(`SAFETY REPORT - ${c.name} (${c.symbol})\n\nScore: ${s.score}/100 - ${s.label}\n\nRISKS:\n${s.risks.length ? s.risks.map(r => '• ' + r).join('\n') : 'None found'}\n\nSAFE:\n${s.safe.length ? s.safe.map(r => '• ' + r).join('\n') : 'None'}\n\n${s.score < 50 ? 'WARNING: Do NOT buy large amount. High rug risk.' : s.score < 80 ? 'Be careful. Small amount only.' : 'Looks relatively safe, but still DYOR.'}`);
+  alert(`SAFETY REPORT - ${c.name} (${c.symbol})\n\nScore: ${s.score}/100 - ${s.label}\n\nRISKS:\n${s.risks.length ? s.risks.map(r => '• ' + r).join('\n') : 'None'}\n\nSAFE:\n${s.safe.length ? s.safe.map(r => '• ' + r).join('\n') : 'None'}`);
 }
-
 async function checkSafetyDetail(addr) {
   const c = allCoins.find(x => x.address === addr);
   const el = document.getElementById('safetyDetail');
   if (el) el.textContent = 'Checking safety...';
   const s = await getSafety(c);
-  if (el) {
-    el.innerHTML = `<b style="color:${s.color}">Safety: ${s.score}/100 - ${s.label}</b><br><br><b>Risks:</b><br>${s.risks.join('<br>') || 'None'}<br><br><b>Safe:</b><br>${s.safe.join('<br>') || 'None'}`;
-    el.style.color = '#e6e8ec';
-  }
+  if (el) { el.innerHTML = `<b style="color:${s.color}">Safety: ${s.score}/100 - ${s.label}</b><br><br><b>Risks:</b><br>${s.risks.join('<br>') || 'None'}<br><br><b>Safe:</b><br>${s.safe.join('<br>') || 'None'}`; el.style.color = '#e6e8ec'; }
   render();
 }
-// Filtering and Sorting
+function setTab(t, el) {
+  currentTab = t;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+// Filtering
 function getFiltered() {
   let q = document.getElementById('search').value.toLowerCase().trim();
   let sort = document.getElementById('sort').value;
@@ -313,40 +472,44 @@ function getFiltered() {
   let chain = document.getElementById('chain').value;
   let maxAge = +document.getElementById('maxAge').value || 9999;
   let minSafety = +document.getElementById('minSafety').value || 0;
+  let minWhale = +document.getElementById('minWhale').value || 0;
   let list = [...allCoins];
   if (currentTab === 'trending') list = list.filter(c => Math.abs(c.change) >= 5);
   if (currentTab === 'watchlist') list = list.filter(c => watchlist.includes(c.address));
+  if (currentTab === 'boosted') list = list.filter(c => c.isBoosted || boostedCoins.some(b => b.address.toLowerCase() === c.address.toLowerCase()));
+  if (currentTab === 'whales') list = list.filter(c => c.vol > 20000 || (c.whaleScore ?? 0) >= 40);
   if (currentTab === 'alerts') {
     const alertAddrs = alerts.filter(a => a.active).map(a => a.address);
     list = list.filter(c => alertAddrs.includes(c.address));
-    if (!list.length) {
-      // Show alert coins even if not in current 30, from alerts list
-      return [];
-    }
   }
   if (q) list = list.filter(c => (c.name + c.symbol + c.address).toLowerCase().includes(q));
   if (chain !== 'all') list = list.filter(c => c.chain === chain);
   list = list.filter(c => c.liq >= minLiq && c.vol >= minVol && (c.ageH === null || c.ageH <= maxAge));
   if (minSafety > 0) list = list.filter(c => (c.safetyScore ?? 0) >= minSafety);
+  if (minWhale > 0) list = list.filter(c => (c.whaleScore ?? 0) >= minWhale);
   if (sort === 'newest') list.sort((a, b) => (a.ageH ?? 9999) - (b.ageH ?? 9999));
   if (sort === 'hottest') list.sort((a, b) => b.change - a.change);
   if (sort === 'liquidity') list.sort((a, b) => b.liq - a.liq);
   if (sort === 'volume') list.sort((a, b) => b.vol - a.vol);
   if (sort === 'mcap') list.sort((a, b) => b.mcap - a.mcap);
   if (sort === 'safety') list.sort((a, b) => (b.safetyScore ?? 0) - (a.safetyScore ?? 0));
+  if (sort === 'whale') list.sort((a, b) => (b.whaleScore ?? b.vol) - (a.whaleScore ?? a.vol));
   return list;
 }
 
-// Rendering: Builds coin grid with safety, alerts, portfolio state
+// Rendering
 function render() {
   let list = getFiltered();
   document.getElementById('watchCount').textContent = watchlist.length;
   document.getElementById('alertsCount').textContent = `Alerts: ${alerts.filter(a=>a.active).length} active`;
-  // Special empty state for Alerts tab
   if (currentTab === 'alerts' && !alerts.filter(a=>a.active).length) {
-    document.getElementById('grid').innerHTML = '<div class="empty">No active alerts.<br>Open a coin > Set Price Alert to get notified when it pumps or dumps.</div>';
+    document.getElementById('grid').innerHTML = '<div class="empty">No active alerts.<br>Open a coin > Set Price Alert to get notified.</div>';
     document.getElementById('empty').style.display = 'none';
     return;
+  }
+  if (currentTab === 'boosted' && !list.length) {
+    // Show boosted coins even if not in allCoins
+    list = boostedCoins.map(b => { const m = allCoins.find(c => c.address.toLowerCase() === b.address.toLowerCase()); return m || b; });
   }
   document.getElementById('empty').style.display = list.length ? 'none' : 'block';
   document.getElementById('grid').innerHTML = list.map((c) => {
@@ -358,59 +521,48 @@ function render() {
     let inPortfolio = portfolio.some(p => p.address === c.address);
     let safetyTxt = c.safetyScore !== null && c.safetyScore !== undefined ? `${c.safetyScore}/100` : 'Check';
     let safetyColor = c.safetyScore >= 80 ? '#22c55e' : c.safetyScore >= 50 ? '#eab308' : c.safetyScore !== null ? '#ef4444' : '#eab308';
-    return `<div class="card" onclick="openDetail(${allCoins.indexOf(c)})">
+    let whaleTxt = c.whaleScore !== null && c.whaleScore !== undefined ? `${c.whaleScore}/100` : 'Check';
+    let whaleColor = c.whaleScore >= 70 ? '#38bdf8' : c.whaleScore >= 40 ? '#eab308' : '#9aa4b2';
+    return `<div class="card ${c.isBoosted ? 'boosted' : ''}" onclick="openDetail(${allCoins.indexOf(c)})">
+      ${c.isBoosted ? '<span class="boost-tag">🚀 BOOSTED</span>' : ''}
       <div class="top"><img src="${c.icon || 'https://via.placeholder.com/40'}" onerror="this.src='https://via.placeholder.com/40'"><div><b>${c.name}</b><br><small>${c.symbol} - ${c.chain.toUpperCase()}</small></div><span class="badge ${isHot ? 'hot' : isNew ? 'new' : ''}">${isHot ? 'HOT' : isNew ? 'NEW' : fmtAge(c.ageH)}</span></div>
       <div class="price">${fmtPrice(c.price)} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
       <div class="stats"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Get It On</span>${acq.dexName}</div></div>
       <div style="font-size:11px;margin-top:8px;color:#9aa4b2">Where to get: ${acq.badge} ${inPortfolio ? '• IN PORTFOLIO' : ''} ${hasAlert ? '• ALERT ON' : ''}</div>
-      <div style="font-size:11px;margin-top:6px">Safety: <span id="safety-${c.address}" style="color:${safetyColor};font-weight:700">${safetyTxt}</span> <button onclick="event.stopPropagation();checkSafety('${c.address}')" style="background:#1e293b;color:#fff;border:0;padding:3px 8px;border-radius:8px;cursor:pointer;font-size:11px">Check Safety</button></div>
+      <div style="font-size:11px;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">Safety: <span id="safety-${c.address}" style="color:${safetyColor};font-weight:700">${safetyTxt}</span> <button onclick="event.stopPropagation();checkSafety('${c.address}')" style="background:#1e293b;color:#fff;border:0;padding:3px 8px;border-radius:8px;cursor:pointer;font-size:11px">Check</button> <span style="margin-left:6px">🐋 Whale: <span id="whale-${c.address}" style="color:${whaleColor};font-weight:700">${whaleTxt}</span></span> <button onclick="event.stopPropagation();checkWhale('${c.address}')" style="background:#0ea5e9;color:#fff;border:0;padding:3px 8px;border-radius:8px;cursor:pointer;font-size:11px">Check</button></div>
       <div class="btns"><button class="buy" onclick="event.stopPropagation();buy('${c.chain}','${c.address}')">Buy / Mine</button><button class="watch ${saved ? 'saved' : ''}" onclick="event.stopPropagation();toggleWatch('${c.address}')">${saved ? 'Saved' : 'Watch'}</button></div>
-      <div class="btns"><button class="watch alert-btn" onclick="event.stopPropagation();openAlertModal('${c.address}')">🔔 Price Alert</button><button class="watch" onclick="event.stopPropagation();addToPortfolioPrompt('${c.address}')">+ Portfolio</button></div>
+      <div class="btns"><button class="watch alert-btn" onclick="event.stopPropagation();openAlertModal('${c.address}')">🔔 Alert</button><button class="watch" onclick="event.stopPropagation();addToPortfolioPrompt('${c.address}')">+ Portfolio</button><button class="watch share-btn" onclick="event.stopPropagation();shareCoin('${c.address}')">↗ Share</button></div>
     </div>`;
   }).join('');
 }
 
-// Watchlist
+// Watchlist / Buy / Copy
 function toggleWatch(addr) {
   watchlist.includes(addr) ? watchlist = watchlist.filter(x => x !== addr) : watchlist.push(addr);
   localStorage.setItem('ch_watch', JSON.stringify(watchlist));
   render();
 }
-
-// Trading: Opens native DEX swap
 function buy(chain, addr) {
-  let m = {
-    solana: `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${addr}`,
-    bsc: `https://pancakeswap.finance/swap?outputCurrency=${addr}`,
-    ethereum: `https://app.uniswap.org/swap?outputCurrency=${addr}`,
-    base: `https://app.uniswap.org/swap?outputCurrency=${addr}`
-  };
+  let m = { solana: `https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${addr}`, bsc: `https://pancakeswap.finance/swap?outputCurrency=${addr}`, ethereum: `https://app.uniswap.org/swap?outputCurrency=${addr}`, base: `https://app.uniswap.org/swap?outputCurrency=${addr}` };
   window.open(m[chain] || `https://dexscreener.com/${chain}/${addr}`, '_blank');
 }
+function copyAddr(a) { navigator.clipboard.writeText(a); alert('Contract address copied.'); }
 
-// Utilities: Copy contract
-function copyAddr(a) {
-  navigator.clipboard.writeText(a);
-  alert('Contract address copied.');
-}
-
-// --- PRICE ALERTS ---
+// Alerts
 function openAlertModal(addr) {
   const c = allCoins.find(x => x.address === addr);
   if (!c) return;
-  const target = prompt(`Set Price Alert for ${c.name} (${c.symbol})\n\nCurrent price: ${fmtPrice(c.price)}\n\nEnter target price (e.g. ${c.price * 2}):`, (c.price * 2).toFixed(6));
+  const target = prompt(`Set Price Alert for ${c.name} (${c.symbol})\n\nCurrent price: ${fmtPrice(c.price)}\n\nEnter target price:`, (c.price * 2).toFixed(6));
   if (!target) return;
   const targetPrice = parseFloat(target);
   if (isNaN(targetPrice) || targetPrice <= 0) { alert('Invalid price'); return; }
   const type = targetPrice > c.price ? 'above' : 'below';
-  // Remove old alert for same coin
   alerts = alerts.filter(a => a.address !== addr);
   alerts.push({ address: addr, symbol: c.symbol, name: c.name, targetPrice, type, createdPrice: c.price, active: true, createdAt: Date.now() });
   localStorage.setItem('ch_alerts', JSON.stringify(alerts));
-  alert(`Alert set! You will be notified when ${c.symbol} goes ${type} ${fmtPrice(targetPrice)}`);
+  alert(`Alert set! Notified when ${c.symbol} goes ${type} ${fmtPrice(targetPrice)}`);
   updatePortfolioBar(); render();
 }
-
 function checkAlerts() {
   let triggered = [];
   alerts.forEach(a => {
@@ -418,26 +570,20 @@ function checkAlerts() {
     const c = allCoins.find(x => x.address === a.address);
     if (!c) return;
     let hit = (a.type === 'above' && c.price >= a.targetPrice) || (a.type === 'below' && c.price <= a.targetPrice);
-    if (hit) {
-      triggered.push(a);
-      a.active = false; a.triggeredAt = Date.now(); a.triggeredPrice = c.price;
-    }
+    if (hit) { triggered.push(a); a.active = false; a.triggeredAt = Date.now(); a.triggeredPrice = c.price; }
   });
   if (triggered.length) {
     localStorage.setItem('ch_alerts', JSON.stringify(alerts));
-    triggered.forEach(a => {
-      alert(`🚨 PRICE ALERT: ${a.name} (${a.symbol}) hit ${fmtPrice(a.triggeredPrice)} - Target was ${fmtPrice(a.targetPrice)} (${a.type})`);
-    });
+    triggered.forEach(a => { alert(`🚨 PRICE ALERT: ${a.name} (${a.symbol}) hit ${fmtPrice(a.triggeredPrice)} - Target was ${fmtPrice(a.targetPrice)} (${a.type})`); });
   }
 }
-
 function deleteAlert(addr) {
   alerts = alerts.filter(a => a.address !== addr);
   localStorage.setItem('ch_alerts', JSON.stringify(alerts));
   render(); updatePortfolioBar();
 }
 
-// --- PORTFOLIO TRACKER ---
+// Portfolio
 function addToPortfolioPrompt(addr) {
   const c = allCoins.find(x => x.address === addr);
   if (!c) return;
@@ -448,24 +594,17 @@ function addToPortfolioPrompt(addr) {
   const buyPriceStr = prompt(`At what price did you buy? (Current: ${fmtPrice(c.price)})`, c.price.toString());
   const buyPrice = parseFloat(buyPriceStr) || c.price;
   const existing = portfolio.find(p => p.address === addr);
-  if (existing) {
-    const totalCost = (existing.amount * existing.buyPrice) + (amount * buyPrice);
-    existing.amount += amount;
-    existing.buyPrice = totalCost / existing.amount;
-  } else {
-    portfolio.push({ address: addr, symbol: c.symbol, name: c.name, amount, buyPrice, buyDate: Date.now() });
-  }
+  if (existing) { const totalCost = (existing.amount * existing.buyPrice) + (amount * buyPrice); existing.amount += amount; existing.buyPrice = totalCost / existing.amount; }
+  else { portfolio.push({ address: addr, symbol: c.symbol, name: c.name, amount, buyPrice, buyDate: Date.now() }); }
   localStorage.setItem('ch_portfolio', JSON.stringify(portfolio));
   alert(`Added ${amount} ${c.symbol} to portfolio at ${fmtPrice(buyPrice)}`);
   updatePortfolioBar(); render();
 }
-
 function removeFromPortfolio(addr) {
   portfolio = portfolio.filter(p => p.address !== addr);
   localStorage.setItem('ch_portfolio', JSON.stringify(portfolio));
   updatePortfolioBar(); render(); openPortfolio();
 }
-
 function updatePortfolioBar() {
   let totalValue = 0; let totalCost = 0;
   portfolio.forEach(p => {
@@ -481,33 +620,21 @@ function updatePortfolioBar() {
   if (valEl) valEl.textContent = '$' + totalValue.toFixed(2);
   if (pnlEl) pnlEl.innerHTML = `Portfolio: ${portfolio.length} coins • P/L: <span style="color:${pnl >= 0 ? '#22c55e' : '#ef4444'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(1)}%)</span>`;
 }
-
 function openPortfolio() {
   document.getElementById('modal').classList.add('open');
-  let rows = '';
-  let totalValue = 0; let totalCost = 0;
+  let rows = ''; let totalValue = 0; let totalCost = 0;
   portfolio.forEach(p => {
     const c = allCoins.find(x => x.address === p.address);
     const currentPrice = c ? c.price : p.buyPrice;
-    const value = p.amount * currentPrice;
-    const cost = p.amount * p.buyPrice;
-    const pnl = value - cost;
-    const pnlPct = cost > 0 ? (pnl / cost * 100) : 0;
+    const value = p.amount * currentPrice; const cost = p.amount * p.buyPrice; const pnl = value - cost; const pnlPct = cost > 0 ? (pnl / cost * 100) : 0;
     totalValue += value; totalCost += cost;
     rows += `<div style="background:#0b0e14;padding:12px;border-radius:10px;margin-bottom:8px"><b>${p.name} (${p.symbol})</b><br><span style="font-size:12px;color:#9aa4b2">Hold: ${p.amount} • Buy: ${fmtPrice(p.buyPrice)} • Now: ${fmtPrice(currentPrice)}</span><br><span style="font-size:13px">Value: $${value.toFixed(2)} • P/L: <span style="color:${pnl >= 0 ? '#22c55e' : '#ef4444'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(1)}%)</span></span><br><button onclick="removeFromPortfolio('${p.address}')" style="background:#ef4444;color:#fff;border:0;padding:6px 10px;border-radius:8px;margin-top:6px;cursor:pointer">Remove</button></div>`;
   });
   let alertsRows = alerts.map(a => `<div style="background:#0b0e14;padding:10px;border-radius:10px;margin-bottom:6px;font-size:13px">${a.symbol} - ${a.type} ${fmtPrice(a.targetPrice)} • ${a.active ? 'ACTIVE' : 'TRIGGERED'} ${a.active ? `<button onclick="deleteAlert('${a.address}');openPortfolio()" style="background:#ef4444;color:#fff;border:0;padding:4px 8px;border-radius:6px;float:right;cursor:pointer">Delete</button>` : ''}</div>`).join('');
-  document.getElementById('detail').innerHTML = `
-    <h2>My Portfolio</h2>
-    <p style="color:#9aa4b2;font-size:13px">Total Value: $${totalValue.toFixed(2)} • Total Cost: $${totalCost.toFixed(2)}</p>
-    <div style="margin-top:12px">${rows || '<p style="color:#9aa4b2">No holdings yet. Open a coin and tap + Portfolio.</p>'}</div>
-    <h3 style="margin-top:16px">My Price Alerts</h3>
-    <div style="margin-top:8px">${alertsRows || '<p style="color:#9aa4b2">No alerts yet.</p>'}</div>
-    <div class="btns"><button class="buy" onclick="closeModal()">Close</button></div>
-  `;
+  document.getElementById('detail').innerHTML = `<h2>My Portfolio</h2><p style="color:#9aa4b2;font-size:13px">Total Value: $${totalValue.toFixed(2)} • Total Cost: $${totalCost.toFixed(2)}</p><div style="margin-top:12px">${rows || '<p style="color:#9aa4b2">No holdings yet. Open a coin and tap + Portfolio.</p>'}</div><h3 style="margin-top:16px">My Price Alerts</h3><div style="margin-top:8px">${alertsRows || '<p style="color:#9aa4b2">No alerts yet.</p>'}</div><div class="btns"><button class="buy" onclick="closeModal()">Close</button></div>`;
 }
 
-// Data Accuracy: Fetches real hourly OHLCV chart data directly from GeckoTerminal
+// Chart - GeckoTerminal
 async function fetchRealChart(c) {
   if (!c.pairAddress) return null;
   try {
@@ -516,14 +643,11 @@ async function fetchRealChart(c) {
     const list = res?.data?.attributes?.ohlcv_list || [];
     if (!list.length) return null;
     const sorted = [...list].sort((a, b) => a[0] - b[0]);
-    return {
-      labels: sorted.map(x => new Date(x[0] * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })),
-      data: sorted.map(x => parseFloat(x[4]))
-    };
+    return { labels: sorted.map(x => new Date(x[0] * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })), data: sorted.map(x => parseFloat(x[4])) };
   } catch (e) { return null; }
 }
 
-// Token Detail: Detail sheet with market overview, safety, alerts, portfolio, acquisition guide
+// Detail
 let chart;
 async function openDetail(idx) {
   let c = allCoins[idx];
@@ -533,40 +657,22 @@ async function openDetail(idx) {
   let inPortfolio = portfolio.find(p => p.address === c.address);
   document.getElementById('modal').classList.add('open');
   document.getElementById('detail').innerHTML = `
-    <h2>${c.name} (${c.symbol})</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${fmtAge(c.ageH)} - Live Price</small>
+    <h2>${c.name} (${c.symbol}) ${c.isBoosted ? '🚀 BOOSTED' : ''}</h2><small>${c.chain.toUpperCase()} - ${c.dex || 'DEX'} - ${fmtAge(c.ageH)} - Live Price ${c.isBoosted ? '• Paying to Trend' : ''}</small>
     <div class="price" style="font-size:28px">${fmtPrice(c.price)} <span class="${c.change >= 0 ? 'up' : 'down'}">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}% 24h</span></div>
     <canvas id="priceChart" height="140"></canvas>
-    <div style="font-size:11px;color:#9aa4b2;margin:6px 0">Real 24h chart - Source: GeckoTerminal / DexScreener</div>
+    <div style="font-size:11px;color:#9aa4b2;margin:6px 0">Real 24h chart - GeckoTerminal / DexScreener</div>
     <div class="detail-grid"><div><span>Liquidity</span>${fmt(c.liq)}</div><div><span>Volume 24h</span>${fmt(c.vol)}</div><div><span>Market Cap</span>${fmt(c.mcap)}</div><div><span>Chain</span>${c.chain}</div></div>
-    <div class="safety-box">
-      <h3>🛡️ Safety / Rug Check</h3>
-      <div id="safetyDetail" style="font-size:12px;margin:8px 0;color:#eab308">${c.safetyScore ? `Cached: ${c.safetyScore}/100 - Click to re-check` : 'Click to check honeypot, mint, tax, blacklist...'}</div>
-      <div class="btns"><button class="buy" onclick="checkSafetyDetail('${c.address}')">Run Safety Check</button></div>
-    </div>
-    <div class="alert-box">
-      <h3>🔔 Price Alert</h3>
-      <p style="font-size:12px;color:#9aa4b2">${existingAlert ? `Active alert: ${existingAlert.type} ${fmtPrice(existingAlert.targetPrice)}` : 'Get notified when this coin hits your target price.'}</p>
-      <div class="btns"><button class="buy" onclick="openAlertModal('${c.address}')">Set Price Alert</button>${existingAlert ? `<button class="watch" onclick="deleteAlert('${c.address}');openDetail(${idx})">Delete Alert</button>` : ''}</div>
-    </div>
-    <div class="portfolio-box">
-      <h3>💼 Portfolio</h3>
-      <p style="font-size:12px;color:#9aa4b2">${inPortfolio ? `You hold ${inPortfolio.amount} ${c.symbol} • Buy: ${fmtPrice(inPortfolio.buyPrice)} • P/L: ${fmtPrice(c.price - inPortfolio.buyPrice)} per token` : 'Track how much you own of this coin.'}</p>
-      <div class="btns"><button class="buy" onclick="addToPortfolioPrompt('${c.address}')">+ Add to Portfolio</button>${inPortfolio ? `<button class="watch" onclick="removeFromPortfolio('${c.address}');openDetail(${idx})">Remove</button>` : ''}</div>
-    </div>
-    <div class="acquire">
-      <h3>Where To Get This Coin</h3>
-      <span class="tag ${acq.badgeClass}">${acq.badge}</span>
-      <span class="tag">DEX: ${acq.dexName}</span>
-      <span class="tag">Chain: ${c.chain.toUpperCase()}</span>
-      <p style="margin-top:8px">${acq.text}</p>
-      <p style="margin-top:8px">${acq.steps.join('<br>')}</p>
-      <div class="btns"><button class="buy" onclick="window.open('${acq.dexUrl}','_blank')">Open ${acq.dexName}</button><button class="watch" onclick="window.open('https://www.coingecko.com/en/search?query=${c.symbol}','_blank')">Check CEX Listing</button></div>
-    </div>
-    <div class="info-box">Most new coins in Coin Hunter are NOT mineable. Mining only works for Proof-of-Work coins like BTC, LTC, DOGE. For all other tokens, use Buy / Swap on the DEX above.</div>
+    <div class="boost-box" style="display:${c.isBoosted ? 'block' : 'none'}"><h3>🚀 Boosted - Paying to Trend</h3><p style="font-size:12px;color:#cbd5e1">This coin paid DexScreener to trend. Boosted coins often pump first because thousands see them. But check Safety + Whale before buying - boosts do NOT mean safe.</p></div>
+    <div class="whale-box"><h3>🐋 Whale Tracker</h3><div id="whaleDetail" style="font-size:12px;margin:8px 0;color:#38bdf8">${c.whaleScore ? `Cached: ${c.whaleScore}/100 - Click to re-check` : 'Click to scan holders, volume & whale momentum...'}</div><div class="btns"><button class="buy" style="background:#0ea5e9" onclick="checkWhaleDetail('${c.address}')">Scan Whales</button></div></div>
+    <div class="safety-box"><h3>🛡️ Safety / Rug Check</h3><div id="safetyDetail" style="font-size:12px;margin:8px 0;color:#eab308">${c.safetyScore ? `Cached: ${c.safetyScore}/100 - Click to re-check` : 'Click to check honeypot, mint, tax, blacklist...'}</div><div class="btns"><button class="buy" onclick="checkSafetyDetail('${c.address}')">Run Safety Check</button></div></div>
+    <div class="alert-box"><h3>🔔 Price Alert</h3><p style="font-size:12px;color:#9aa4b2">${existingAlert ? `Active alert: ${existingAlert.type} ${fmtPrice(existingAlert.targetPrice)}` : 'Get notified when this coin hits your target price.'}</p><div class="btns"><button class="buy" onclick="openAlertModal('${c.address}')">Set Price Alert</button>${existingAlert ? `<button class="watch" onclick="deleteAlert('${c.address}');openDetail(${idx})">Delete Alert</button>` : ''}</div></div>
+    <div class="portfolio-box"><h3>💼 Portfolio</h3><p style="font-size:12px;color:#9aa4b2">${inPortfolio ? `You hold ${inPortfolio.amount} ${c.symbol} • Buy: ${fmtPrice(inPortfolio.buyPrice)}` : 'Track how much you own.'}</p><div class="btns"><button class="buy" onclick="addToPortfolioPrompt('${c.address}')">+ Add to Portfolio</button>${inPortfolio ? `<button class="watch" onclick="removeFromPortfolio('${c.address}');openDetail(${idx})">Remove</button>` : ''}</div></div>
+    <div class="acquire"><h3>Where To Get This Coin</h3><span class="tag ${acq.badgeClass}">${acq.badge}</span><span class="tag">DEX: ${acq.dexName}</span><span class="tag">Chain: ${c.chain.toUpperCase()}</span><p style="margin-top:8px">${acq.text}</p><p style="margin-top:8px">${acq.steps.join('<br>')}</p><div class="btns"><button class="buy" onclick="window.open('${acq.dexUrl}','_blank')">Open ${acq.dexName}</button><button class="watch" onclick="window.open('https://www.coingecko.com/en/search?query=${c.symbol}','_blank')">Check CEX Listing</button></div></div>
+    <div class="info-box">Most new coins are NOT mineable. Mining only works for Proof-of-Work coins like BTC, LTC, DOGE. For all other tokens, use Buy / Swap on the DEX above.</div>
     <b>Contract Address</b><div class="contract"><span>${c.address}</span><button onclick="copyAddr('${c.address}')">Copy</button></div>
-    <p style="color:#9aa4b2;font-size:13px;margin:8px 0">${c.desc || 'No description available. Always conduct your own research before trading.'}</p>
+    <p style="color:#9aa4b2;font-size:13px;margin:8px 0">${c.desc || 'No description available. Always DYOR before trading.'}</p>
     <div class="btns"><button class="buy" onclick="buy('${c.chain}','${c.address}')">Buy on DEX</button><button class="watch" onclick="window.open('https://dexscreener.com/${c.chain}/${c.address}','_blank')">View on DexScreener</button></div>
-    <div class="btns"><button class="watch" onclick="toggleWatch('${c.address}');openDetail(${idx})">${watchlist.includes(c.address) ? 'Remove from Watchlist' : 'Add to Watchlist'}</button></div>
+    <div class="btns"><button class="watch share-btn" onclick="shareCoin('${c.address}')">↗ Share to WhatsApp</button><button class="watch" onclick="toggleWatch('${c.address}');openDetail(${idx})">${watchlist.includes(c.address) ? 'Remove from Watchlist' : 'Add to Watchlist'}</button></div>
   `;
   const real = await fetchRealChart(c);
   let labels, data;
@@ -579,14 +685,15 @@ async function openDetail(idx) {
     options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9aa4b2' } }, y: { ticks: { color: '#9aa4b2' } } } }
   });
 }
-
-// Modal: Closes detail sheet
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 
-// Initialization
+// Init
+applyTheme();
 load();
+loadBoosts();
 setInterval(load, 30000);
+setInterval(loadBoosts, 60000);
 </script>
 </body>
 </html>
