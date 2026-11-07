@@ -398,3 +398,160 @@ function followWallet() {
 }
 function unfollowWallet(addr) { followedWallets = followedWallets.filter(w => w !== addr); localStorage.setItem('ch_followedWallets', JSON.stringify(followedWallets)); render(); }
 </script>
+<script>
+async function load() {
+  try {
+    const queries = ['SOL', 'PEPE', 'DOGE', 'WIF', 'BONK', 'POPCAT'];
+    let allPairs = [];
+    for (let q of queries) {
+      try {
+        const res = await fetch(`https://api.dexscreener.com/latest/dex/search?q=${q}`).then(r => r.json());
+        if (res?.pairs) allPairs.push(...res.pairs.slice(0, 15));
+      } catch (e) {}
+    }
+    let seen = new Set();
+    let pairs = allPairs.filter(p => {
+      let addr = p.baseToken?.address;
+      if (!addr || seen.has(addr)) return false;
+      seen.add(addr);
+      return true;
+    }).slice(0, 40);
+    const enriched = pairs.map((p) => {
+      let base = { name: p.baseToken?.name || 'Unknown', symbol: p.baseToken?.symbol || '?', address: p.baseToken?.address, chain: p.chainId || 'solana', icon: p.info?.imageUrl || '', url: p.url || '', desc: p.info?.description || '', price: parseFloat(p.priceUsd || 0), change: parseFloat(p.priceChange?.h24 || 0), liq: p.liquidity?.usd || 0, vol: p.volume?.h24 || 0, mcap: p.fdv || p.marketCap || 0, dex: p.dexId, pairAddress: p.pairAddress, pairCreatedAt: p.pairCreatedAt || null, ageH: calcAgeH(p.pairCreatedAt), safetyScore: null, whaleScore: null, devPct: undefined, top10Pct: undefined, isBoosted: false, isPumpFun: false, isGraduated: false, pumpReason: '' };
+      const pump = detectPumpFun(p);
+      base.isPumpFun = pump.isPumpFun;
+      base.isGraduated = pump.isGraduated;
+      base.pumpReason = pump.reason;
+      if (safetyCache[base.address]) base.safetyScore = safetyCache[base.address].score;
+      if (whaleCache[base.address]) base.whaleScore = whaleCache[base.address].score;
+      if (devCache[base.address]) { base.devPct = devCache[base.address].devPct; base.top10Pct = devCache[base.address].top10Pct; }
+      if (boostedCoins.some(b => b.address.toLowerCase() === base.address.toLowerCase())) base.isBoosted = true;
+      return base;
+    });
+    const total = enriched.length;
+    const pumpCount = enriched.filter(c => c.isPumpFun).length;
+    const gradCount = enriched.filter(c => c.isGraduated).length;
+    const scamEl = document.getElementById('scamStats');
+    if (scamEl) scamEl.textContent = `Scanned ${total} coins: ${pumpCount} were pump.fun scams (hidden) • ${gradCount} graduated / real DEX shown.`;
+    checkGraduatedAlerts(enriched);
+    allCoins = enriched.filter(c => c.price > 0 || c.liq > 0);
+    if (!allCoins.length) allCoins = enriched;
+    lastUpdatedAt = new Date();
+    const el = document.getElementById('lastUpdated');
+    if (el) el.textContent = 'Last updated: ' + lastUpdatedAt.toLocaleTimeString() + ' - Live from DexScreener - Pump.fun filtered';
+    checkAlerts(); updatePortfolioBar(); updateWhaleSummary(); render();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = '<div class="empty">Failed to load market data. Wait 10 seconds and refresh.<br>' + e.message + '</div>';
+  }
+}
+function updateWhaleSummary() {
+  const el = document.getElementById('whaleSummary');
+  if (!el) return;
+  const whaleCoins = allCoins.filter(c => c.whaleScore !== null && c.whaleScore >= 70);
+  if (whaleCoins.length) el.textContent = `${whaleCoins.length} coins with heavy whale activity! Tap View Whales.`;
+  else if (allCoins.length) el.textContent = `${allCoins.length} coins scanned. Tap a coin > Check Whales to see whale activity.`;
+  else el.textContent = 'Scanning...';
+  const wc = document.getElementById('whaleCount');
+  if (wc) wc.textContent = `Whales: ${whaleCoins.length} hot`;
+}
+function getFiltered() {
+  let list = [...allCoins];
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  const sortVal = document.getElementById('sort').value;
+  const minLiq = parseFloat(document.getElementById('minLiq').value) || 0;
+  const minVol = parseFloat(document.getElementById('minVol').value) || 0;
+  const chain = document.getElementById('chain').value;
+  const maxAge = parseFloat(document.getElementById('maxAge').value) || 99999;
+  const minSafety = parseFloat(document.getElementById('minSafety').value) || 0;
+  const minWhale = parseFloat(document.getElementById('minWhale').value) || 0;
+  const maxDev = parseFloat(document.getElementById('maxDev').value) || 100;
+  const maxTop10 = parseFloat(document.getElementById('maxTop10').value) || 100;
+  if (hidePump) list = list.filter(c => !c.isPumpFun);
+  if (gradOnly) list = list.filter(c => c.isGraduated);
+  if (currentTab === 'sniper') list = list.filter(c => c.ageH !== null && c.ageH < 0.083);
+  if (currentTab === 'watchlist') list = list.filter(c => watchlist.includes(c.address));
+  if (currentTab === 'boosted') list = list.filter(c => c.isBoosted);
+  if (currentTab === 'whales') list = list.filter(c => (c.whaleScore ?? 0) >= 50);
+  if (currentTab === 'graduated') list = list.filter(c => c.isGraduated);
+  if (currentTab === 'trending') list = list.filter(c => Math.abs(c.change) > 20);
+  if (currentTab === 'copy') list = list.filter(c => c.whaleScore !== null && c.whaleScore >= 60);
+  if (currentTab === 'alerts') return [];
+  if (q) list = list.filter(c => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q) || c.address.toLowerCase().includes(q));
+  if (chain !== 'all') list = list.filter(c => c.chain === chain);
+  list = list.filter(c => c.liq >= minLiq && c.vol >= minVol);
+  if (maxAge < 9999) list = list.filter(c => c.ageH === null || c.ageH <= maxAge);
+  if (minSafety > 0) list = list.filter(c => (c.safetyScore ?? 0) >= minSafety);
+  if (minWhale > 0) list = list.filter(c => (c.whaleScore ?? 0) >= minWhale);
+  if (maxDev < 100) list = list.filter(c => c.devPct === undefined || c.devPct <= maxDev);
+  if (maxTop10 < 100) list = list.filter(c => c.top10Pct === undefined || c.top10Pct <= maxTop10);
+  const sorts = {
+    newest: (a, b) => (a.ageH ?? 999) - (b.ageH ?? 999),
+    sniper: (a, b) => (a.ageH ?? 999) - (b.ageH ?? 999),
+    hottest: (a, b) => Math.abs(b.change) - Math.abs(a.change),
+    liquidity: (a, b) => b.liq - a.liq,
+    volume: (a, b) => b.vol - a.vol,
+    mcap: (a, b) => b.mcap - a.mcap,
+    safety: (a, b) => (b.safetyScore ?? 0) - (a.safetyScore ?? 0),
+    whale: (a, b) => (b.whaleScore ?? 0) - (a.whaleScore ?? 0),
+    devsafe: (a, b) => (a.devPct ?? 99) - (b.devPct ?? 99)
+  };
+  list.sort(sorts[sortVal] || sorts.newest);
+  return list;
+}
+function render() {
+  const list = getFiltered();
+  const grid = document.getElementById('grid');
+  const emptyEl = document.getElementById('empty');
+  document.getElementById('watchCount').textContent = watchlist.length;
+  if (currentTab === 'alerts') {
+    grid.innerHTML = '';
+    if (!alerts.length) { emptyEl.style.display = 'block'; emptyEl.textContent = 'No alerts yet. Tap a coin > Set Alert to get notified when price moves.'; return; }
+    emptyEl.style.display = 'none';
+    grid.innerHTML = alerts.map((a, i) => {
+      const c = allCoins.find(x => x.address === a.address);
+      const cur = c ? c.price : 0;
+      const hit = c ? ((a.type === 'above' && cur >= a.price) || (a.type === 'below' && cur <= a.price)) : false;
+      return `<div class="card" style="border-color:#7c3aed"><div class="top"><b>${a.symbol}</b><span class="badge">${a.type} $${a.price}</span></div><div class="price">${fmtPrice(cur)} ${hit ? '🎯 HIT!' : ''}</div><p style="font-size:12px;color:#9aa4b2;margin:6px 0">Current: ${fmtPrice(cur)} | Target: $${a.price}</p><div class="btns"><button class="watch" onclick="deleteAlert(${i})">Delete Alert</button>${c ? `<button class="buy" onclick="openDetail('${a.address}')">View Coin</button>` : ''}</div></div>`;
+    }).join('');
+    return;
+  }
+  if (currentTab === 'copy') {
+    grid.innerHTML = '';
+    emptyEl.style.display = 'none';
+    let copyHtml = `<div class="card" style="grid-column:1/-1"><h3>👥 Copy Whale Wallets</h3><p style="font-size:12px;color:#9aa4b2;margin:6px 0">Follow smart wallets. When they buy, you see it here. Paste a wallet from DexScreener > Top Traders.</p><div style="display:flex;gap:8px"><input id="followWalletInput" placeholder="Paste wallet address..." style="flex:1;padding:10px;border-radius:10px;border:1px solid #232a35;background:#0b0e14;color:#fff"><button class="buy" onclick="followWallet()" style="padding:10px 16px">+ Follow</button></div>${followedWallets.length ? `<p style="font-size:12px;margin-top:10px">Following ${followedWallets.length} wallets:</p>` + followedWallets.map(w => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:6px 0;border-bottom:1px solid #232a35"><span>${w.slice(0, 12)}...${w.slice(-6)}</span><button onclick="unfollowWallet('${w}')" style="background:#ef4444;color:#fff;border:0;padding:4px 8px;border-radius:8px;cursor:pointer">Unfollow</button></div>`).join('') : '<p style="font-size:12px;margin-top:10px;color:#9aa4b2">No wallets followed yet. Example: find a whale on DexScreener who made 10x, copy their address here.</p>'}</div>`;
+    grid.innerHTML = copyHtml + (list.length ? list.map(c => renderCard(c)).join('') : '<div class="empty" style="grid-column:1/-1">No whale coins yet. Tap a coin > Check Whales to score it, then it appears here if Whale Score >= 60.</div>');
+    return;
+  }
+  if (!list.length) { grid.innerHTML = ''; emptyEl.style.display = 'block'; emptyEl.textContent = currentTab === 'watchlist' ? 'Watchlist empty. Tap Watch on any coin.' : 'No coins match your filters. Try lowering Min Liquidity to 0.'; return; }
+  emptyEl.style.display = 'none';
+  grid.innerHTML = list.map(c => renderCard(c)).join('');
+}
+function renderCard(c) {
+  const isWatched = watchlist.includes(c.address);
+  const chClass = c.change >= 0 ? 'up' : 'down';
+  const chSign = c.change >= 0 ? '+' : '';
+  const pump = getPumpRisk(c);
+  const tag = c.ageH !== null && c.ageH < 0.083 ? '<span class="sniper-tag">⚡ SNIPER</span>' : c.isPumpFun ? '<span class="pump-tag">PUMP.FUN</span>' : c.isBoosted ? '<span class="boost-tag">🚀 BOOSTED</span>' : c.isGraduated ? '<span class="grad-tag">GRADUATED</span>' : '';
+  const tagClass = c.isPumpFun ? 'pumpfun' : c.ageH !== null && c.ageH < 0.083 ? 'sniper' : c.isBoosted ? 'boosted' : '';
+  const img = c.icon ? `<img src="${c.icon}" onerror="this.src='https://via.placeholder.com/40/22c55e/fff?text=${c.symbol.slice(0, 2)}'">` : `<img src="https://via.placeholder.com/40/22c55e/fff?text=${c.symbol.slice(0, 2)}">`;
+  return `<div class="card ${tagClass}" onclick="openDetail('${c.address}')">
+  ${tag}
+  <div class="top">${img}<div><b>${c.name}</b><br><small>${c.symbol} • ${c.chain} • ${fmtAge(c.ageH)}</small></div><span class="badge ${c.ageH !== null && c.ageH < 1 ? 'new' : ''}">${c.ageH !== null && c.ageH < 1 ? 'NEW' : c.dex || ''}</span></div>
+  <div class="price">${fmtPrice(c.price)} <span class="${chClass}" style="font-size:14px">${chSign}${c.change.toFixed(2)}%</span></div>
+  <div style="font-size:11px;color:${pump.color}">${pump.text}</div>
+  ${c.devPct !== undefined ? `<div style="font-size:11px;color:#fb923c;margin-top:4px">👨‍💻 Dev: ${c.devPct}% • Top10: ${c.top10Pct}%</div>` : ''}
+  <div class="stats">
+  <div><span>Liquidity</span>${fmt(c.liq)}</div>
+  <div><span>Volume 24h</span>${fmt(c.vol)}</div>
+  <div><span>Market Cap</span>${fmt(c.mcap)}</div>
+  <div><span>Safety</span>${c.safetyScore !== null ? c.safetyScore + '/100' : 'Tap Check'}</div>
+  </div>
+  <div class="btns">
+  <button class="buy" onclick="event.stopPropagation();buyCoin('${c.address}')">Buy</button>
+  <button class="jupiter-btn" onclick="event.stopPropagation();buyJupiter('${c.address}')">⚡ Jupiter</button>
+  <button class="watch ${isWatched ? 'saved' : ''}" onclick="event.stopPropagation();toggleWatch('${c.address}')">${isWatched ? '★ Saved' : '☆ Watch'}</button>
+  <button class="alert-btn" onclick="event.stopPropagation();setAlertPrompt('${c.address}')">🔔</button>
+  </div>
+  </div>`;
+}
+</script>
