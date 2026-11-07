@@ -132,3 +132,129 @@ canvas{background:#0b0e14;border-radius:12px;padding:8px}
 <div class="boost-bar"><b>🔥 TRENDING BOOSTS + X TRENDING</b><div class="boost-scroll" id="boostScroll"><span style="color:#fff;font-size:12px">Loading boosts...</span></div></div>
 <div class="portfolio-bar"><div><b id="portfolioValue">$0.00</b><br><span id="portfolioPnL">Portfolio: 0 coins</span></div><div><span id="alertsCount">Alerts: 0 active</span><br><span id="whaleCount">Whales: Checking...</span></div><button onclick="openPortfolio()">My Portfolio</button></div>
 <div class="whale-bar"><b>🐋 WHALE TRACKER + COPY WHALES</b> <span id="whaleSummary">Scanning...</span> <button onclick="openWhaleView()" style="background:#0ea5e9;color:#fff;border:0;padding:5px 10px;border-radius:8px;cursor:pointer;font-size:12px;float:right">View Whales</button></div>
+<div class="controls">
+<div class="tabs">
+<button class="active" onclick="setTab('new',this)">New</button>
+<button onclick="setTab('sniper',this)">⚡ Sniper</button>
+<button onclick="setTab('trending',this)">Trending</button>
+<button onclick="setTab('boosted',this)">🚀 Boosted</button>
+<button onclick="setTab('whales',this)">🐋 Whales</button>
+<button onclick="setTab('graduated',this)">✅ Graduated</button>
+<button onclick="setTab('copy',this)">👥 Copy Whales</button>
+<button onclick="setTab('watchlist',this)">Watchlist (<span id="watchCount">0</span>)</button>
+<button onclick="setTab('alerts',this)">Alerts</button>
+</div>
+</div>
+
+<div class="controls">
+<input class="search" id="search" placeholder="Search by name, symbol or contract..." oninput="render()">
+<select class="sort" id="sort" onchange="render()">
+<option value="newest">Sort: Newest</option>
+<option value="sniper">Sort: Sniper (Youngest First)</option>
+<option value="hottest">Sort: Hottest (24h Change)</option>
+<option value="liquidity">Sort: Biggest Liquidity</option>
+<option value="volume">Sort: Biggest Volume 24h</option>
+<option value="mcap">Sort: Biggest Market Cap</option>
+<option value="safety">Sort: Safest First</option>
+<option value="whale">Sort: Most Whale Activity</option>
+<option value="devsafe">Sort: Dev Safest First</option>
+</select>
+</div>
+
+<div class="filters">
+<label>Min Liquidity $<input type="number" id="minLiq" value="20000" oninput="render()"></label>
+<label>Min Volume 24h $<input type="number" id="minVol" value="10000" oninput="render()"></label>
+<label>Chain<select id="chain" onchange="render()"><option value="all">All Chains</option><option value="solana">Solana</option><option value="bsc">BSC</option><option value="ethereum">Ethereum</option><option value="base">Base</option></select></label>
+<label>Max Age (hours)<input type="number" id="maxAge" value="72" oninput="render()"></label>
+<label>Min Safety<input type="number" id="minSafety" value="0" oninput="render()"></label>
+<label>Min Whale<input type="number" id="minWhale" value="0" oninput="render()"></label>
+<label>Max Dev %<input type="number" id="maxDev" value="100" oninput="render()"></label>
+<label>Max Top10 %<input type="number" id="maxTop10" value="100" oninput="render()"></label>
+</div>
+
+<div id="grid" class="grid"></div>
+<div id="empty" class="empty" style="display:none">No coins found.</div>
+
+<div id="modal"><div class="sheet">
+<button class="close" onclick="closeModal()">X</button>
+<div id="detail"></div>
+</div></div>
+
+<script>
+let allCoins = [];
+let boostedCoins = [];
+let sniperCoins = [];
+let currentTab = 'new';
+let watchlist = JSON.parse(localStorage.getItem('ch_watch') || '[]');
+let alerts = JSON.parse(localStorage.getItem('ch_alerts') || '[]');
+let portfolio = JSON.parse(localStorage.getItem('ch_portfolio') || '[]');
+let portfolioHistory = JSON.parse(localStorage.getItem('ch_portfolio_history') || '[]');
+let safetyCache = {};
+let whaleCache = {};
+let devCache = {};
+let lastUpdatedAt = null;
+let hidePump = localStorage.getItem('ch_hidePump') !== 'false';
+let gradOnly = localStorage.getItem('ch_gradOnly') === 'true';
+let gradAlertOn = localStorage.getItem('ch_gradAlert') === 'true';
+let tgChatId = localStorage.getItem('ch_tgChatId') || '';
+let tgBotToken = localStorage.getItem('ch_tgBotToken') || '';
+let followedWallets = JSON.parse(localStorage.getItem('ch_followedWallets') || '[]');
+let knownGraduated = new Set(JSON.parse(localStorage.getItem('ch_knownGrad') || '[]'));
+
+function toggleHidePump() { hidePump = !hidePump; localStorage.setItem('ch_hidePump', hidePump); updateScamButtons(); render(); }
+function toggleGradOnly() { gradOnly = !gradOnly; localStorage.setItem('ch_gradOnly', gradOnly); updateScamButtons(); render(); }
+function toggleGradAlert() { gradAlertOn = !gradAlertOn; localStorage.setItem('ch_gradAlert', gradAlertOn); updateScamButtons(); if (gradAlertOn) alert('🔔 Graduated Alert ON\n\nYou will get an alert when a new coin graduates to Raydium.\nSet Telegram ID above for push even when app is closed.'); }
+function updateScamButtons() {
+  const h = document.getElementById('hidePumpBtn');
+  const g = document.getElementById('gradOnlyBtn');
+  const ga = document.getElementById('gradAlertBtn');
+  if (h) { h.textContent = hidePump ? '🚫 Hide Pump.fun: ON' : '⚠️ Show Pump.fun: OFF'; h.className = hidePump ? 'toggle-on' : 'toggle-off'; }
+  if (g) { g.textContent = gradOnly ? '✅ Graduated Only: ON' : '✅ Graduated Only: OFF'; g.className = gradOnly ? 'toggle-on' : 'toggle-off'; }
+  if (ga) { ga.textContent = gradAlertOn ? '🔔 Graduated Alert: ON' : '🔔 Graduated Alert: OFF'; ga.className = gradAlertOn ? 'toggle-on' : 'toggle-off'; }
+}
+function showPumpWarning() { alert(`WHY PUMP.FUN = 98% SCAM\n\n1. Anyone creates coin in 30 sec for $2\n2. Dev + friends buy FIRST at $0\n3. You buy later at 100x higher\n4. Dev dumps, price -99% in 1 min\n5. Only 1-2% graduate to Raydium\n\nRULE: Never buy pump.fun unless it graduated + Liquidity > $50k + Safety > 70`); }
+let theme = localStorage.getItem('ch_theme') || 'dark';
+function applyTheme() { document.body.classList.toggle('light', theme === 'light'); const btn = document.getElementById('themeBtn'); if (btn) btn.textContent = theme === 'light' ? '🌙 Dark' : '☀️ Light'; }
+function toggleTheme() { theme = theme === 'light' ? 'dark' : 'light'; localStorage.setItem('ch_theme', theme); applyTheme(); }
+function shareApp() { const text = `🔥 Coin Hunter Pro - No Pump.fun Scams!\nWe hide pump.fun rug coins. Only graduated / real DEX coins.\n\nCheck it out: ${location.href}`; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); }
+function shareCoin(addr) { const c = allCoins.find(x => x.address === addr); if (!c) return; const pump = c.isPumpFun ? '⚠️ PUMP.FUN - HIGH RUG RISK' : c.isGraduated ? '✅ GRADUATED - Safer' : 'Real DEX'; const text = `🚀 ${c.name} (${c.symbol}) - ${c.chain.toUpperCase()}\n\n${pump}\nPrice: $${c.price}\n24h: ${c.change.toFixed(2)}%\nLiquidity: $${Math.round(c.liq)}\nSafety: ${c.safetyScore || 'Not checked'}/100\nDev Holds: ${c.devPct !== undefined ? c.devPct + '%' : 'Check'}\nTop10 Holds: ${c.top10Pct !== undefined ? c.top10Pct + '%' : 'Check'}\n\nContract: ${c.address}\nBuy: https://dexscreener.com/${c.chain}/${c.address}\n\nFound on Coin Hunter Pro 🛡️`; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); }
+function geckoNetwork(chain) { const m = { solana: 'solana', bsc: 'bsc', ethereum: 'eth', base: 'base' }; return m[chain] || 'solana'; }
+function calcAgeH(t) { if (!t) return null; const d = Date.now() - t; if (d < 0) return 0; return d / 3600000; }
+function fmtAge(ageH) { if (ageH === null || ageH === undefined) return 'Unknown'; if (ageH < 1) return Math.max(1, Math.round(ageH * 60)) + 'm ago'; if (ageH < 24) return Math.floor(ageH) + 'h ago'; return Math.floor(ageH / 24) + 'd ago'; }
+function fmt(n) { if (!n) return '$0'; if (n >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B'; if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M'; if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K'; return '$' + Number(n).toFixed(4); }
+function fmtPrice(p) { if (!p) return '$0.000000'; if (p >= 1) return '$' + p.toFixed(4); return '$' + p.toFixed(6); }
+function detectPumpFun(pair) {
+  const dexId = (pair.dexId || '').toLowerCase();
+  const url = (pair.url || '').toLowerCase();
+  const labels = (pair.labels || []).join(' ').toLowerCase();
+  if (dexId === 'pumpfun' || dexId === 'pump' || dexId.includes('pump')) return { isPumpFun: true, isGraduated: false, reason: `DEX is ${pair.dexId} - still on bonding curve` };
+  if (url.includes('pump.fun') || url.includes('pumpfun')) return { isPumpFun: true, isGraduated: false, reason: 'Pump.fun URL' };
+  if (labels.includes('pump')) return { isPumpFun: true, isGraduated: false, reason: 'Pump.fun label' };
+  const graduatedDexes = ['raydium', 'meteora', 'orca', 'jupiter', 'lifinity', 'phoenix', 'openbook'];
+  if (graduatedDexes.includes(dexId)) return { isPumpFun: false, isGraduated: true, reason: `Graduated to ${pair.dexId} - real liquidity pool` };
+  if (pair.chainId !== 'solana') return { isPumpFun: false, isGraduated: true, reason: `On ${pair.chainId} - not pump.fun` };
+  const liq = pair.liquidity?.usd || 0;
+  const mcap = pair.fdv || pair.marketCap || 0;
+  if (liq < 70000 && mcap < 150000) return { isPumpFun: true, isGraduated: false, reason: `Solana + Low Liq $${Math.round(liq)} - likely still on pump.fun bonding curve` };
+  return { isPumpFun: false, isGraduated: false, reason: `On ${dexId || 'DEX'} - check manually` };
+}
+function getPumpRisk(c) {
+  if (c.isPumpFun) return { level: 'EXTREME', color: '#ef4444', text: '⚠️ PUMP.FUN - 98% RUG RISK - DO NOT BUY', advice: 'Dev can dump anytime. Price can go -99% in minutes. Only buy if it graduates to Raydium.' };
+  if (c.isGraduated) return { level: 'LOWER', color: '#22c55e', text: '✅ GRADUATED - Real DEX Pool', advice: 'Graduated from pump.fun to Raydium. Still risky, but has real liquidity. Check Safety + Dev + Top Holders.' };
+  return { level: 'MEDIUM', color: '#eab308', text: 'Real DEX - Check Safety', advice: 'Not pump.fun. Still check Safety Score before buying.' };
+}
+function getAcquisition(c) {
+  const mineable = ['BTC','BITCOIN','LTC','LITECOIN','DOGE','DOGECOIN','KAS','KASPA','ETC','XMR','MONERO','BCH'];
+  const sym = (c.symbol || '').toUpperCase();
+  const isMineable = mineable.includes(sym);
+  const dexByChain = {
+    solana: { name: 'Jupiter / Raydium', url: `https://jup.ag/swap/SOL-${c.address}`, jupUrl: `https://jup.ag/swap/SOL-${c.address}`, cex: 'Binance, Bybit, OKX' },
+    bsc: { name: 'PancakeSwap', url: `https://pancakeswap.finance/swap?outputCurrency=${c.address}`, jupUrl: `https://pancakeswap.finance/swap?outputCurrency=${c.address}`, cex: 'Binance, Bitget' },
+    ethereum: { name: 'Uniswap', url: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, jupUrl: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, cex: 'Binance, Coinbase, Kraken' },
+    base: { name: 'Uniswap on Base', url: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, jupUrl: `https://app.uniswap.org/swap?outputCurrency=${c.address}`, cex: 'Coinbase, Bybit' }
+  };
+  const dex = dexByChain[c.chain] || { name: 'DexScreener', url: `https://dexscreener.com/${c.chain}/${c.address}`, jupUrl: `https://dexscreener.com/${c.chain}/${c.address}`, cex: 'Check CoinGecko' };
+  if (isMineable) return { title: 'Mineable', badge: 'MINEABLE', badgeClass: '', text: `${c.name} (${c.symbol}) runs on Proof-of-Work. You can mine it.`, steps: ['1. Get a wallet for ' + c.symbol, '2. Join a mining pool: F2Pool, ViaBTC, Antpool', '3. Connect your ASIC / GPU miner', '4. You earn ' + c.symbol], dexName: dex.name, dexUrl: dex.url, jupUrl: dex.jupUrl, cex: dex.cex };
+  return { title: 'Not Mineable', badge: 'NOT MINEABLE - BUY ONLY', badgeClass: 'warn', text: `${c.name} (${c.symbol}) is a token on ${c.chain.toUpperCase()}. It cannot be mined.`, steps: ['1. Buy ' + (c.chain === 'solana' ? 'SOL' : c.chain === 'bsc' ? 'BNB' : 'ETH') + ' on Binance / Bybit', '2. Send to wallet (Phantom for Solana, MetaMask for BSC / ETH / Base)', `3. Swap on ${dex.name} using contract below`, '4. Or buy on CEX if listed: ' + dex.cex], dexName: dex.name, dexUrl: dex.url, jupUrl: dex.jupUrl, cex: dex.cex };
+}
+function setTab(t, el) { currentTab = t; document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active')); el.classList.add('active'); render(); }
