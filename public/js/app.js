@@ -87,7 +87,7 @@ function getAcquisition(c){
   const mine=['BTC','LTC','DOGE','KAS','ETC','XMR','BCH'].includes((c.symbol||'').toUpperCase());
   if(mine) return {badge:'MINEABLE',text:c.name+' can be mined.',steps:['Get wallet','Join pool F2Pool','Connect miner'],dexName:d.name,dexUrl:d.url,cex:d.cex};
   return {badge:'NOT MINEABLE',text:c.name+' is a token on '+c.chain+'. Cannot be mined.',steps:['Buy '+(c.chain==='solana'?'SOL':c.chain==='bsc'?'BNB':'ETH'),'Send to wallet','Swap on '+d.name],dexName:d.name,dexUrl:d.url,cex:d.cex};
-                                                            }
+}
 // ============================================================
 //  COIN HUNTER PRO - APP.JS - PART 2/5
 //  SECTION: BUTTONS + BOOSTS + SNIPER + TELEGRAM
@@ -300,8 +300,7 @@ async function load(){
     const lu=el('lastUpdated');
     if(lu)lu.textContent='Last updated: '+new Date().toLocaleTimeString()+' - Live';
     checkAlerts();updatePortfolioBar();updateWhaleSummary();render();
-  }catch(e){el('grid').innerHTML='<div class="empty">Failed to load. Refresh.<br>'+e.message+'</div>';}
-}
+  }catch(e){el('grid').innerHTML='<div class="empty">Failed to load. Refresh.<br>'+e.message+'</div>';}}
 function updateWhaleSummary(){
   const box=el('whaleSummary');if(!box)return;
   const hot=allCoinsState.filter(c=>c.whaleScore!=null&&c.whaleScore>=70);
@@ -339,7 +338,7 @@ function getFiltered(){
   const sorts={newest:(a,b)=>(a.ageH||999)-(b.ageH||999),hottest:(a,b)=>Math.abs(b.change)-Math.abs(a.change),liquidity:(a,b)=>b.liq-a.liq,volume:(a,b)=>b.vol-a.vol,mcap:(a,b)=>b.mcap-a.mcap,safety:(a,b)=>(b.safetyScore||0)-(a.safetyScore||0),whale:(a,b)=>(b.whaleScore||0)-(a.whaleScore||0)};
   list.sort(sorts[sortVal]||sorts.newest);
   return list;
-                                                                                       }
+}
 // ============================================================
 //  COIN HUNTER PRO - APP.JS - PART 4/5
 //  SECTION: RENDER + CARDS + BUY + WATCH + ALERTS
@@ -349,6 +348,8 @@ function getFiltered(){
 //  RENDER: DRAW COINS ON SCREEN BY TAB
 // ------------------------------------------------------------
 function render(){
+  // --- MINING TAB ---
+  if(currentTabState==='mining'){ renderMining(); return; }
   const list=getFiltered();
   const grid=el('grid');
   const emptyBox=el('emptyBox');
@@ -461,7 +462,7 @@ function checkAlerts(){
   });
   const box=el('alertsCount');
   if(box&&alertsState.length)box.textContent='Alerts: '+alertsState.length+' active';
-    }
+}
 // ============================================================
 //  COIN HUNTER PRO - APP.JS - PART 5/5
 //  SECTION: PORTFOLIO + DETAIL MODAL + INIT
@@ -580,6 +581,98 @@ function openDetail(addr){
       }
     });
   },100);
+}
+
+// ============================================================
+//  COIN HUNTER PRO - APP.JS - PART 6/6 - MINING POOL HUB
+//  SECTION: MINEABLE COINS + POOLS + CALCULATOR
+// ============================================================
+
+// ------------------------------------------------------------
+//  MINING DATA: REAL POOLS
+// ------------------------------------------------------------
+const MINING_DATA = [
+  { coin: 'Bitcoin', symbol: 'BTC', algo: 'SHA-256', price: 97500, blockReward: 3.125, pools: [
+      { name: 'Foundry USA', fee: '0%', payout: 'FPPS', url: 'https://foundrydigital.com', hash: '32% of network' },
+      { name: 'AntPool', fee: '1%', payout: 'PPLNS', url: 'https://www.antpool.com', hash: '25% of network' },
+      { name: 'F2Pool', fee: '2.5%', payout: 'FPPS', url: 'https://www.f2pool.com', hash: '12% of network' },
+      { name: 'ViaBTC', fee: '2%', payout: 'PPLNS+', url: 'https://www.viabtc.com', hash: '10% of network' } ], miners: 'Antminer S21 Pro (234 TH/s), Whatsminer M66' },
+  { coin: 'Litecoin + Dogecoin', symbol: 'LTC + DOGE', algo: 'Scrypt - MERGED MINING', price: 112, blockReward: 12.5, pools: [
+      { name: 'F2Pool', fee: '2%', payout: 'PPLNS - Get LTC + DOGE together', url: 'https://www.f2pool.com', hash: 'Best for merged' },
+      { name: 'ViaBTC', fee: '2%', payout: 'PPLNS+', url: 'https://www.viabtc.com', hash: 'Merged mining' },
+      { name: 'LitecoinPool', fee: '0%', payout: 'PPLNS', url: 'https://www.litecoinpool.org', hash: 'LTC only' } ], miners: 'Antminer L9 (16 GH/s), Elphapex DG1+' },
+  { coin: 'Kaspa', symbol: 'KAS', algo: 'kHeavyHash', price: 0.11, blockReward: 58, pools: [
+      { name: '2Miners', fee: '1%', payout: 'PPLNS', url: 'https://2miners.com/kas-mining-pool', hash: 'Top KAS pool' },
+      { name: 'F2Pool', fee: '2%', payout: 'PPLNS', url: 'https://www.f2pool.com', hash: 'Big pool' },
+      { name: 'HeroMiners', fee: '0.9%', payout: 'PPLNS', url: 'https://kaspa.herominers.com', hash: 'Small pool' } ], miners: 'IceRiver KS5M (15 TH/s), Bitmain KS5 Pro' },
+  { coin: 'Ethereum Classic', symbol: 'ETC', algo: 'Etchash - GPU', price: 22.5, blockReward: 3.2, pools: [
+      { name: '2Miners', fee: '1%', payout: 'PPLNS', url: 'https://2miners.com/etc-mining-pool', hash: 'GPU friendly' },
+      { name: 'F2Pool', fee: '2%', payout: 'PPLNS', url: 'https://www.f2pool.com', hash: 'Big pool' },
+      { name: 'Ethermine', fee: '1%', payout: 'PPLNS', url: 'https://etc.ethermine.org', hash: 'ETC only' } ], miners: 'RTX 3070 / 4070 GPU Rig, Jasminer X16' },
+  { coin: 'Monero', symbol: 'XMR', algo: 'RandomX - CPU', price: 185, blockReward: 0.6, pools: [
+      { name: 'SupportXMR', fee: '0.6%', payout: 'PPLNS', url: 'https://supportxmr.com', hash: 'CPU mining' },
+      { name: 'MineXMR', fee: '1%', payout: 'PPLNS', url: 'https://minexmr.com', hash: 'CPU mining' },
+      { name: '2Miners', fee: '1%', payout: 'PPLNS', url: 'https://2miners.com/xmr-mining-pool', hash: 'CPU mining' } ], miners: 'Any CPU - Ryzen 9 7950X best' },
+  { coin: 'Bitcoin Cash', symbol: 'BCH', algo: 'SHA-256', price: 540, blockReward: 3.125, pools: [
+      { name: 'ViaBTC', fee: '2%', payout: 'PPLNS+', url: 'https://www.viabtc.com', hash: 'Best for BCH' },
+      { name: 'AntPool', fee: '1%', payout: 'PPLNS', url: 'https://www.antpool.com', hash: 'SHA-256' },
+      { name: 'BTC.com', fee: '2%', payout: 'FPPS', url: 'https://pool.btc.com', hash: 'SHA-256' } ], miners: 'Same ASIC as BTC - Antminer S21' }
+];
+
+// ------------------------------------------------------------
+//  MINING RENDER: SHOW POOLS + CALCULATOR
+// ------------------------------------------------------------
+function renderMining(){
+  const grid = el('grid');
+  const emptyBox = el('emptyBox');
+  emptyBox.style.display = 'none';
+  let h = '<div style="grid-column:1/-1;background:#f97316;color:#000;padding:16px;border-radius:14px"><h2>⛏️ MINING POOL HUB - Mine Real Coins</h2><p style="font-size:13px">⚠️ You CANNOT mine from browser. You need a Miner Machine or GPU. This hub shows you the BEST pools + how much you will earn.</p></div>';
+  h += '<div class="mining-card" style="grid-column:1/-1"><h3>🧮 Mining Calculator - How Much Will I Earn?</h3>';
+  h += '<div class="calc-box"><label>Choose Coin</label><select id="calcCoin" onchange="calcMining()">';
+  MINING_DATA.forEach((m,i)=>{ h += '<option value="'+i+'">'+m.coin+' ('+m.symbol+')</option>'; });
+  h += '</select>';
+  h += '<label>Your Hashrate (TH/s for BTC, GH/s for LTC, etc)</label><input id="calcHash" type="number" value="100" oninput="calcMining()">';
+  h += '<label>Power Usage (Watts)</label><input id="calcPower" type="number" value="3500" oninput="calcMining()">';
+  h += '<label>Electricity Cost ($ per kWh) - Nigeria ~ $0.08</label><input id="calcElec" type="number" value="0.08" step="0.01" oninput="calcMining()">';
+  h += '<div class="calc-result" id="calcResult">Calculating...</div>';
+  h += '<p style="font-size:11px;color:#9aa4b2;text-align:center;margin-top:8px">Estimate only. Real earnings depend on difficulty + pool luck.</p>';
+  h += '</div></div>';
+  MINING_DATA.forEach(m=>{
+    h += '<div class="mining-card"><h3>'+m.coin+' <span class="mine-badge">'+m.symbol+'</span></h3>';
+    h += '<p style="font-size:12px;color:#9aa4b2">Algo: '+m.algo+' • Price: $'+m.price+' • Block Reward: '+m.blockReward+'</p>';
+    h += '<p style="font-size:12px;margin:8px 0">🔧 Best Miner: '+m.miners+'</p>';
+    h += '<b style="font-size:13px">Top Pools:</b>';
+    m.pools.forEach(p=>{
+      h += '<div class="pool-row"><div><b>'+p.name+'</b><br><span style="font-size:11px;color:#9aa4b2">Fee: '+p.fee+' • '+p.payout+' • '+p.hash+'</span></div><button onclick="window.open(\''+p.url+'\',\'_blank\')">Join Pool →</button></div>';
+    });
+    h += '</div>';
+  });
+  h += '<div class="mining-card" style="grid-column:1/-1"><h3>📚 How To Start Mining in 3 Steps</h3><p>1. <b>Buy Miner</b> - Antminer / Whatsminer for BTC, GPU Rig for ETC, CPU for XMR.<br>2. <b>Create Wallet</b> - Use Trust Wallet / Ledger to receive coins.<br>3. <b>Join Pool Above</b> - Paste your wallet address in pool, connect miner, start earning.</p><p style="color:#f97316;font-size:12px;margin-top:8px">⚠️ NEVER pay a site that says "Mine in browser" or "Pay to unlock mining". Those are scams.</p></div>';
+  grid.innerHTML = h;
+  setTimeout(calcMining, 100);
+}
+
+// ------------------------------------------------------------
+//  MINING CALCULATOR: SIMPLE PROFIT FORMULA
+// ------------------------------------------------------------
+function calcMining(){
+  const coinSel = el('calcCoin'); if(!coinSel) return;
+  const m = MINING_DATA[parseInt(coinSel.value) || 0];
+  const hash = parseFloat(el('calcHash').value) || 0;
+  const power = parseFloat(el('calcPower').value) || 0;
+  const elec = parseFloat(el('calcElec').value) || 0;
+  let dailyCoins = 0;
+  if(m.symbol === 'BTC') dailyCoins = (hash / 600000) * 3.125 * 144;
+  else if(m.symbol.includes('LTC')) dailyCoins = (hash / 1000) * 0.08;
+  else if(m.symbol === 'KAS') dailyCoins = (hash / 100) * 2.5;
+  else if(m.symbol === 'ETC') dailyCoins = (hash / 1000) * 0.5;
+  else if(m.symbol === 'XMR') dailyCoins = (hash / 1000) * 0.01;
+  else dailyCoins = (hash / 600000) * 3.125 * 144;
+  const gross = dailyCoins * m.price;
+  const elecCost = (power / 1000) * 24 * elec;
+  const net = gross - elecCost;
+  const res = el('calcResult');
+  if(res) res.innerHTML = 'Est. Earn: <b>'+dailyCoins.toFixed(4)+' '+m.symbol+' / day</b><br>Gross: $'+gross.toFixed(2)+' - Elec: $'+elecCost.toFixed(2)+' = <span style="color:'+(net>=0?'#22c55e':'#ef4444')+'">Net: $'+net.toFixed(2)+'/day</span><br><span style="font-size:13px;color:#fff">Monthly Net: $'+(net*30).toFixed(2)+'</span>';
 }
 
 // ------------------------------------------------------------
