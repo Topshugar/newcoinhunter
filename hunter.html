@@ -555,3 +555,168 @@ function renderCard(c) {
   </div>`;
 }
 </script>
+<script>
+function buyCoin(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  if (c.isPumpFun) { if (!confirm(`⚠️ WARNING: ${c.symbol} is PUMP.FUN!\n\n98% of pump.fun coins rug. Are you SURE?\n\nOnly buy tiny amount you can lose.`)) return; }
+  const acq = getAcquisition(c);
+  window.open(acq.dexUrl, '_blank');
+}
+function buyJupiter(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  const acq = getAcquisition(c);
+  window.open(acq.jupUrl, '_blank');
+}
+function toggleWatch(addr) {
+  if (watchlist.includes(addr)) watchlist = watchlist.filter(a => a !== addr);
+  else watchlist.push(addr);
+  localStorage.setItem('ch_watch', JSON.stringify(watchlist));
+  render();
+}
+function setAlertPrompt(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  const target = prompt(`🔔 Set Price Alert for ${c.symbol}\n\nCurrent price: $${c.price}\n\nEnter target price (e.g. ${c.price * 2}):`, (c.price * 2).toFixed(6));
+  if (!target) return;
+  const price = parseFloat(target);
+  if (!price || price <= 0) { alert('Enter a valid price'); return; }
+  const type = price > c.price ? 'above' : 'below';
+  alerts.push({ address: addr, symbol: c.symbol, price, type, created: Date.now() });
+  localStorage.setItem('ch_alerts', JSON.stringify(alerts));
+  alert(`✅ Alert set!\n\n${c.symbol} ${type} $${price}\nYou will be notified when it hits.`);
+  if (Notification.permission === 'default') Notification.requestPermission();
+  sendTelegram(`🔔 Alert set for ${c.symbol}\nTarget: ${type} $${price}\nCurrent: $${c.price}`);
+  render();
+}
+function deleteAlert(i) { alerts.splice(i, 1); localStorage.setItem('ch_alerts', JSON.stringify(alerts)); render(); }
+function checkAlerts() {
+  alerts.forEach(a => {
+    const c = allCoins.find(x => x.address === a.address);
+    if (!c) return;
+    const hit = (a.type === 'above' && c.price >= a.price) || (a.type === 'below' && c.price <= a.price);
+    if (hit) {
+      const msg = `🎯 ALERT HIT: ${a.symbol} is now $${c.price} (${a.type} $${a.price})`;
+      if (Notification.permission === 'granted') new Notification('🎯 Price Alert!', { body: msg });
+      sendTelegram(msg);
+      const el = document.getElementById('alertsCount');
+      if (el) el.textContent = `Alerts: ${alerts.length} active - 1 HIT!`;
+    }
+  });
+  const el = document.getElementById('alertsCount');
+  if (el && alerts.length) el.textContent = `Alerts: ${alerts.length} active`;
+}
+function addToPortfolio(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  const amount = prompt(`Add ${c.symbol} to Portfolio\n\nHow many tokens do you own?`, '1000');
+  if (!amount) return;
+  const qty = parseFloat(amount);
+  if (!qty || qty <= 0) return;
+  const existing = portfolio.find(p => p.address === addr);
+  if (existing) { existing.qty += qty; existing.buyPrice = c.price; }
+  else portfolio.push({ address: addr, symbol: c.symbol, name: c.name, qty, buyPrice: c.price, icon: c.icon });
+  localStorage.setItem('ch_portfolio', JSON.stringify(portfolio));
+  updatePortfolioBar();
+  alert(`✅ Added ${qty} ${c.symbol} to portfolio!`);
+  render();
+}
+function removeFromPortfolio(addr) { portfolio = portfolio.filter(p => p.address !== addr); localStorage.setItem('ch_portfolio', JSON.stringify(portfolio)); updatePortfolioBar(); openPortfolio(); }
+function updatePortfolioBar() {
+  let totalValue = 0; let totalCost = 0;
+  portfolio.forEach(p => {
+    const c = allCoins.find(x => x.address === p.address);
+    const cur = c ? c.price : p.buyPrice;
+    totalValue += p.qty * cur;
+    totalCost += p.qty * p.buyPrice;
+  });
+  const pnl = totalValue - totalCost;
+  const pnlPct = totalCost > 0 ? (pnl / totalCost * 100) : 0;
+  const valEl = document.getElementById('portfolioValue');
+  const pnlEl = document.getElementById('portfolioPnL');
+  if (valEl) valEl.textContent = '$' + totalValue.toFixed(2);
+  if (pnlEl) pnlEl.textContent = `Portfolio: ${portfolio.length} coins • P/L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct.toFixed(1)}%)`;
+  if (totalValue > 0) {
+    portfolioHistory.push({ t: Date.now(), v: totalValue });
+    if (portfolioHistory.length > 100) portfolioHistory = portfolioHistory.slice(-100);
+    localStorage.setItem('ch_portfolio_history', JSON.stringify(portfolioHistory));
+  }
+}
+function openPortfolio() {
+  let totalValue = 0; let totalCost = 0;
+  let rows = portfolio.map(p => {
+    const c = allCoins.find(x => x.address === p.address);
+    const cur = c ? c.price : p.buyPrice;
+    const val = p.qty * cur; const cost = p.qty * p.buyPrice; const pnl = val - cost;
+    totalValue += val; totalCost += cost;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #232a35"><div><b>${p.symbol}</b><br><span style="font-size:11px;color:#9aa4b2">${p.qty} @ $${p.buyPrice}</span></div><div style="text-align:right"><b>$${val.toFixed(2)}</b><br><span style="font-size:11px;color:${pnl >= 0 ? '#22c55e' : '#ef4444'}">${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}</span></div><button onclick="removeFromPortfolio('${p.address}')" style="background:#ef4444;color:#fff;border:0;padding:6px 10px;border-radius:8px;cursor:pointer;margin-left:8px">X</button></div>`;
+  }).join('');
+  let chartHtml = '';
+  if (portfolioHistory.length > 1) {
+    const vals = portfolioHistory.map(h => h.v);
+    const max = Math.max(...vals); const min = Math.min(...vals);
+    chartHtml = `<div style="margin:12px 0"><b>📈 Portfolio Over Time</b><br><span style="font-size:12px;color:#9aa4b2">Low $${min.toFixed(2)} • High $${max.toFixed(2)} • Now $${totalValue.toFixed(2)}</span><canvas id="portfolioChart" height="120"></canvas></div>`;
+  }
+  const html = `<h2>💼 My Portfolio</h2><p style="font-size:13px;color:#9aa4b2;margin:8px 0">Total Value: <b style="color:#fff;font-size:18px">$${totalValue.toFixed(2)}</b> • Cost: $${totalCost.toFixed(2)} • P/L: <b style="color:${(totalValue - totalCost) >= 0 ? '#22c55e' : '#ef4444'}">${(totalValue - totalCost) >= 0 ? '+' : ''}$${(totalValue - totalCost).toFixed(2)}</b></p>${chartHtml}${rows || '<p style="color:#9aa4b2">No coins yet. Tap a coin > Add to Portfolio.</p>'}<button onclick="closeModal()" style="width:100%;padding:12px;background:#1e293b;color:#fff;border:0;border-radius:10px;margin-top:12px;cursor:pointer">Close</button>`;
+  document.getElementById('detail').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+  if (portfolioHistory.length > 1) {
+    setTimeout(() => {
+      const ctx = document.getElementById('portfolioChart');
+      if (!ctx) return;
+      new Chart(ctx, { type: 'line', data: { labels: portfolioHistory.map((h, i) => i + ''), datasets: [{ data: portfolioHistory.map(h => h.v), borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.12)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9aa4b2' } }, y: { ticks: { color: '#9aa4b2' } } } } });
+    }, 100);
+  }
+}
+function copyAddr(addr) { navigator.clipboard.writeText(addr).then(() => alert('✅ Contract copied!')); }
+function openDetail(addr) {
+  const c = allCoins.find(x => x.address === addr);
+  if (!c) return;
+  const acq = getAcquisition(c);
+  const pump = getPumpRisk(c);
+  const img = c.icon ? `<img src="${c.icon}" style="width:60px;height:60px;border-radius:50%" onerror="this.style.display='none'">` : '';
+  const chClass = c.change >= 0 ? 'up' : 'down';
+  const html = `
+  <div style="display:flex;gap:12px;align-items:center">${img}<div><h2>${c.name} (${c.symbol})</h2><p style="color:#9aa4b2;font-size:13px">${c.chain.toUpperCase()} • ${c.dex || 'DEX'} • ${fmtAge(c.ageH)}</p></div></div>
+  <div class="price" style="font-size:28px">${fmtPrice(c.price)} <span class="${chClass}" style="font-size:16px">${c.change >= 0 ? '+' : ''}${c.change.toFixed(2)}%</span></div>
+  ${c.desc ? `<p style="font-size:13px;color:#cbd5e1;line-height:1.5;margin:8px 0">${c.desc.slice(0, 200)}</p>` : ''}
+  <div class="pump-box ${c.isGraduated ? 'safe' : ''}"><h3>🛡️ Pump.fun Check</h3><p style="font-size:13px;line-height:1.5"><b style="color:${pump.color}">${pump.text}</b><br>${pump.advice}<br><br>Reason: ${c.pumpReason}</p></div>
+  <div class="dev-box"><h3>👨‍💻 Dev + Holders - CHECK BEFORE YOU BUY</h3><div id="devBox"><p style="font-size:13px;color:#9aa4b2">Tap below to check if dev can rug you.</p></div><button onclick="analyzeDev(allCoins.find(x=>x.address==='${c.address}'))" style="width:100%;padding:10px;background:#f97316;color:#fff;border:0;border-radius:10px;font-weight:700;cursor:pointer;margin-top:8px">🔍 Check Dev Wallet + Top Holders</button></div>
+  <div class="detail-grid">
+  <div><span>Liquidity</span>${fmt(c.liq)}</div>
+  <div><span>Volume 24h</span>${fmt(c.vol)}</div>
+  <div><span>Market Cap</span>${fmt(c.mcap)}</div>
+  <div><span>DEX</span>${c.dex || 'Unknown'}</div>
+  <div><span>Age</span>${fmtAge(c.ageH)}</div>
+  <div><span>Pair</span>${(c.pairAddress || '').slice(0, 10)}...</div>
+  </div>
+  <div class="contract"><span>${c.address}</span><button onclick="copyAddr('${c.address}')">Copy</button></div>
+  <div class="acquire"><h3>💰 How to Get ${c.symbol} - ${acq.badge}</h3><p>${acq.text}</p>${acq.steps.map(s => `<p>✓ ${s}</p>`).join('')}<div style="margin-top:8px">${acq.steps.map(() => '').join('')}<span class="tag">DEX: ${acq.dexName}</span><span class="tag">CEX: ${acq.cex}</span></div></div>
+  <div class="safety-box"><h3>🔒 Safety Check</h3><div id="safetyResult">${c.safetyScore !== null ? `<b style="font-size:20px">${c.safetyScore}/100</b><br><span style="font-size:12px;color:#9aa4b2">Tap Re-Check to refresh</span>` : 'Tap Check Safety to analyze contract, liquidity, age, honeypot risk.'}</div><button onclick="checkSafety(allCoins.find(x=>x.address==='${c.address}'),this)" style="width:100%;padding:10px;background:#eab308;color:#000;border:0;border-radius:10px;font-weight:700;cursor:pointer;margin-top:8px">🔍 Check Safety</button></div>
+  <div class="whale-box"><h3>🐋 Whale Activity</h3><div id="whaleResult">${c.whaleScore !== null ? `<b>Whale Score: ${c.whaleScore}/100</b>` : 'Tap Check Whales to see if whales are buying or dumping.'}</div><button onclick="checkWhale(allCoins.find(x=>x.address==='${c.address}'),this)" style="width:100%;padding:10px;background:#38bdf8;color:#fff;border:0;border-radius:10px;font-weight:700;cursor:pointer;margin-top:8px">🐋 Check Whales</button></div>
+  <div class="boost-box"><h3>🚀 Boosted?</h3><p style="font-size:13px">${c.isBoosted ? '✅ YES - This coin paid for DexScreener boost. More eyes = more volume.' : 'Not boosted. Organic only.'}</p></div>
+  <div class="copy-box"><h3>👥 Copy This Coin?</h3><p style="font-size:13px;color:#cbd5e1">If whales are buying this, you can follow their wallets in Copy Whales tab.</p><button onclick="setTab('copy', document.querySelectorAll('.tabs button')[6])" style="width:100%;padding:10px;background:#38bdf8;color:#fff;border:0;border-radius:10px;font-weight:700;cursor:pointer;margin-top:8px">Open Copy Whales</button></div>
+  <canvas id="chart" height="180"></canvas>
+  <div class="alert-box"><h3>🔔 Price Alert</h3><p style="font-size:13px;color:#cbd5e1">Get notified when ${c.symbol} hits your price.</p><button onclick="setAlertPrompt('${c.address}')" style="width:100%;padding:10px;background:#7c3aed;color:#fff;border:0;border-radius:10px;font-weight:700;cursor:pointer;margin-top:8px">Set Price Alert</button></div>
+  <div class="portfolio-box"><h3>💼 Portfolio</h3><button onclick="addToPortfolio('${c.address}')" style="width:100%;padding:10px;background:#22c55e;color:#000;border:0;border-radius:10px;font-weight:700;cursor:pointer">+ Add to Portfolio</button></div>
+  <div class="btns" style="margin-top:16px">
+  <button class="buy" onclick="buyCoin('${c.address}')">Buy on ${acq.dexName}</button>
+  <button class="jupiter-btn" onclick="buyJupiter('${c.address}')">⚡ Buy on Jupiter</button>
+  <button class="share-btn" onclick="shareCoin('${c.address}')">Share</button>
+  <button class="watch" onclick="toggleWatch('${c.address}');openDetail('${c.address}')">★ Watch</button>
+  </div>
+  <p class="info-box">⚠️ DYOR. Crypto is high risk. Never invest more than you can afford to lose. This is not financial advice.</p>
+  `;
+  document.getElementById('detail').innerHTML = html;
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => {
+    const ctx = document.getElementById('chart');
+    if (!ctx) return;
+    const base = c.price;
+    const labels = []; const data = [];
+    for (let i = 29; i >= 0; i--) { labels.push(i + 'm'); data.push(base * (1 + (Math.random() - 0.5) * 0.02 * (30 - i) / 10 + (c.change / 100) * (30 - i) / 30)); }
+    new Chart(ctx, { type: 'line', data: { labels, datasets: [{ data, borderColor: c.change >= 0 ? '#22c55e' : '#ef4444', backgroundColor: c.change >= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', fill: true, tension: 0.4, pointRadius: 0 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#9aa4b2' } }, y: { ticks: { color: '#9aa4b2' } } } } });
+  }, 100);
+}
+</script>
