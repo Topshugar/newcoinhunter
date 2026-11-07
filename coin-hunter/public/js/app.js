@@ -377,6 +377,107 @@ function checkAlerts(){
   const box=el('alertsCount');
   if(box&&alertsState.length)box.textContent='Alerts: '+alertsState.length+' active';
 }
-
+function addToPortfolio(addr){
+  const c=allCoinsState.find(x=>x.address===addr);if(!c)return;
+  const amount=prompt('Add '+c.symbol+' to Portfolio\nHow many tokens?','1000');
+  if(!amount)return;
+  const qty=parseFloat(amount);if(!qty||qty<=0)return;
+  const ex=portfolioState.find(p=>p.address===addr);
+  if(ex){ex.qty+=qty;ex.buyPrice=c.price;}
+  else portfolioState.push({address:addr,symbol:c.symbol,qty,buyPrice:c.price});
+  localStorage.setItem('ch_portfolio',JSON.stringify(portfolioState));
+  updatePortfolioBar();alert('✅ Added '+qty+' '+c.symbol);render();
+}
+function removeFromPortfolio(addr){
+  portfolioState=portfolioState.filter(p=>p.address!==addr);
+  localStorage.setItem('ch_portfolio',JSON.stringify(portfolioState));
+  updatePortfolioBar();openPortfolio();
+}
+function updatePortfolioBar(){
+  let total=0,cost=0;
+  portfolioState.forEach(p=>{
+    const c=allCoinsState.find(x=>x.address===p.address);
+    const cur=c?c.price:p.buyPrice;
+    total+=p.qty*cur;cost+=p.qty*p.buyPrice;
+  });
+  const pnl=total-cost;
+  const pct=cost>0?(pnl/cost*100):0;
+  const v=el('portfolioValue'),pEl=el('portfolioPnL');
+  if(v)v.textContent='$'+total.toFixed(2);
+  if(pEl)pEl.textContent='Portfolio: '+portfolioState.length+' coins • P/L: '+(pnl>=0?'+':'')+'$'+pnl.toFixed(2)+' ('+pct.toFixed(1)+'%)';
+  if(total>0){portfolioHistoryState.push({t:Date.now(),v:total});if(portfolioHistoryState.length>100)portfolioHistoryState=portfolioHistoryState.slice(-100);localStorage.setItem('ch_portfolio_history',JSON.stringify(portfolioHistoryState));}
+}
+function openPortfolio(){
+  let total=0,cost=0;
+  const rows=portfolioState.map(p=>{
+    const c=allCoinsState.find(x=>x.address===p.address);
+    const cur=c?c.price:p.buyPrice;
+    const val=p.qty*cur,cc=p.qty*p.buyPrice,pnl=val-cc;
+    total+=val;cost+=cc;
+    return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #333"><div><b>'+p.symbol+'</b><br><span style="font-size:11px;color:#9aa4b2">'+p.qty+' @ $'+p.buyPrice+'</span></div><div style="text-align:right"><b>$'+val.toFixed(2)+'</b><br><span style="color:'+(pnl>=0?'#22c55e':'#ef4444')+'">'+(pnl>=0?'+':'')+'$'+pnl.toFixed(2)+'</span></div><button onclick="removeFromPortfolio(\''+p.address+'\')" style="background:#ef4444;color:#fff;border:0;padding:6px 10px;border-radius:8px">X</button></div>';
+  }).join('');
+  let h='<h2>💼 My Portfolio</h2><p>Total: <b>$'+total.toFixed(2)+'</b> • Cost: $'+cost.toFixed(2)+' • P/L: $'+(total-cost).toFixed(2)+'</p>';
+  h+=rows||'<p style="color:#9aa4b2">No coins yet.</p>';
+  h+='<button onclick="closeModal()" style="width:100%;padding:12px;background:#1e293b;color:#fff;border-radius:10px;margin-top:12px">Close</button>';
+  el('detailBox').innerHTML=h;
+  el('modalBox').classList.add('open');
+}
+function copyAddr(addr){navigator.clipboard.writeText(addr).then(()=>alert('✅ Contract copied!'));}
+function closeModal(){el('modalBox').classList.remove('open');}
+function openDetail(addr){
+  const c=allCoinsState.find(x=>x.address===addr);if(!c)return;
+  const acq=getAcquisition(c);
+  const pump=getPumpRisk(c);
+  const chClass=c.change>=0?'up':'down';
+  const img=c.icon?'<img src="'+c.icon+'" style="width:60px;height:60px;border-radius:50%">':'';
+  let h='';
+  h+='<div style="display:flex;gap:12px">'+img+'<div><h2>'+c.name+' ('+c.symbol+')</h2><p style="color:#9aa4b2">'+c.chain+' • '+(c.dex||'DEX')+' • '+fmtAge(c.ageH)+'</p></div></div>';
+  h+='<div class="price" style="font-size:28px">'+fmtPrice(c.price)+' <span class="'+chClass+'">'+(c.change>=0?'+':'')+c.change.toFixed(2)+'%</span></div>';
+  if(c.desc)h+='<p style="font-size:13px;color:#cbd5e1">'+c.desc.slice(0,200)+'</p>';
+  h+='<div class="pump-box"><h3>🛡️ Pump.fun Check</h3><p><b style="color:'+pump.color+'">'+pump.text+'</b><br>Reason: '+c.pumpReason+'</p></div>';
+  h+='<div class="dev-box"><h3>👨‍💻 Dev + Holders</h3><div id="devBox">Tap below to check.</div><button onclick="analyzeDev(allCoinsState.find(x=>x.address===\''+c.address+'\'))" style="width:100%;padding:10px;background:#f97316;color:#fff;border-radius:10px;margin-top:8px">🔍 Check Dev</button></div>';
+  h+='<div class="detail-grid"><div><span>Liquidity</span>'+fmt(c.liq)+'</div><div><span>Volume</span>'+fmt(c.vol)+'</div><div><span>Market Cap</span>'+fmt(c.mcap)+'</div><div><span>DEX</span>'+(c.dex||'Unknown')+'</div></div>';
+  h+='<div class="contract"><span>'+c.address+'</span><button onclick="copyAddr(\''+c.address+'\')">Copy</button></div>';
+  h+='<div class="acquire"><h3>💰 How to Get '+c.symbol+' - '+acq.badge+'</h3><p>'+acq.text+'</p>'+acq.steps.map(s=>'<p>✓ '+s+'</p>').join('')+'<p>DEX: '+acq.dexName+' • CEX: '+acq.cex+'</p></div>';
+  h+='<div class="safety-box"><h3>🔒 Safety</h3><div id="safetyResult">'+(c.safetyScore!=null?'<b>'+c.safetyScore+'/100</b>':'Tap Check Safety')+'</div><button onclick="checkSafety(allCoinsState.find(x=>x.address===\''+c.address+'\'),this)" style="width:100%;padding:10px;background:#eab308;border-radius:10px;margin-top:8px">🔍 Check Safety</button></div>';
+  h+='<div class="whale-box"><h3>🐋 Whales</h3><div id="whaleResult">'+(c.whaleScore!=null?'<b>'+c.whaleScore+'/100</b>':'Tap Check Whales')+'</div><button onclick="checkWhale(allCoinsState.find(x=>x.address===\''+c.address+'\'),this)" style="width:100%;padding:10px;background:#38bdf8;color:#fff;border-radius:10px;margin-top:8px">🐋 Check Whales</button></div>';
+  h+='<div class="boost-box"><h3>🚀 Boosted?</h3><p>'+(c.isBoosted?'✅ YES':'Not boosted')+'</p></div>';
+  h+='<canvas id="chartCanvas" height="180"></canvas>';
+  h+='<div class="alert-box"><button onclick="setAlertPrompt(\''+c.address+'\')" style="width:100%;padding:10px;background:#7c3aed;color:#fff;border-radius:10px">Set Price Alert</button></div>';
+  h+='<div class="portfolio-box"><button onclick="addToPortfolio(\''+c.address+'\')" style="width:100%;padding:10px;background:#22c55e;border-radius:10px">+ Add to Portfolio</button></div>';
+  h+='<div class="btns" style="margin-top:12px"><button class="buy" onclick="buyCoin(\''+c.address+'\')">Buy on '+acq.dexName+'</button><button class="jupiter-btn" onclick="buyJupiter(\''+c.address+'\')">⚡ Jupiter</button><button class="watch" onclick="shareCoin(\''+c.address+'\')">Share</button><button class="watch" onclick="toggleWatch(\''+c.address+'\')">★ Watch</button></div>';
+  h+='<p class="info-box">⚠️ DYOR. Never invest more than you can afford to lose.</p>';
+  el('detailBox').innerHTML=h;
+  el('modalBox').classList.add('open');
+  setTimeout(()=>{
+    const ctx=el('chartCanvas');if(!ctx)return;
+    const base=c.price,labels=[],data=[];
+    for(let i=29;i>=0;i--){labels.push(i+'m');data.push(base*(1+(Math.random()-0.5)*0.02*(30-i)/10+(c.change/100)*(30-i)/30));}
+    new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:data,borderColor:c.change>=0?'#22c55e':'#ef4444',backgroundColor:'rgba(34,197,94,0.12)',fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9aa4b2'}},y:{ticks:{color:'#9aa4b2'}}}}});
+  },100);
+}
+function initApp(){
+  const tb=el('themeBtn');if(tb)tb.addEventListener('click',toggleTheme);
+  const hb=el('hidePumpBtn');if(hb)hb.addEventListener('click',toggleHidePump);
+  const gb=el('gradOnlyBtn');if(gb)gb.addEventListener('click',toggleGradOnly);
+  const gab=el('gradAlertBtn');if(gab)gab.addEventListener('click',toggleGradAlert);
+  document.querySelectorAll('#tabsBar button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      currentTabState=b.dataset.tab;
+      document.querySelectorAll('#tabsBar button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');render();
+    });
+  });
+  ['searchInput','sortSelect','minLiqInput','minVolInput','chainSelect','maxAgeInput','minSafetyInput'].forEach(id=>{
+    const inp=el(id);if(inp){inp.addEventListener('input',render);inp.addEventListener('change',render);}
+  });
+  el('modalBox').addEventListener('click',e=>{if(e.target.id==='modalBox')closeModal();});
+  const tgInput=el('tgChatIdInput');
+  if(tgInput&&savedTgChatId){tgInput.value=savedTgChatId;el('tgStatus').textContent='✅ Telegram connected';}
+  applyTheme();updateScamButtons();
+  load();loadBoosts();loadSniper();
+  setInterval(load,30000);setInterval(loadBoosts,60000);setInterval(loadSniper,60000);
+}
+document.addEventListener('DOMContentLoaded',initApp);
 
 
