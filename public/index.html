@@ -1,15 +1,19 @@
 <!-- ============================================================
-     COIN HUNTER PRO - HTML STRUCTURE
+     COIN HUNTER PRO - index.html
      Job: Only layout / buttons. NO logic here.
      Logic lives in /js/app.js
+     Styles live in /css/style.css
 ============================================================ -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coin Hunter Pro</title>
+<title>Coin Hunter Pro - Find New Coins Early | Anti-Scam + Mining</title>
+<meta name="description" content="Coin Hunter Pro - Find new coins early, avoid Pump.fun rugs, track whales, and calculate mining profit.">
+<meta name="theme-color" content="#0b0e14">
 <link rel="stylesheet" href="/css/style.css">
+<!-- Chart.js - Used for Real Live Chart in coin detail modal -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -27,11 +31,13 @@
 </header>
 
 <!-- ================= LIVE STATUS ================= -->
+<!-- Updated by load() in app.js -> #lastUpdated -->
 <div class="live-bar">
   <span class="live-dot"></span> LIVE <span id="lastUpdated">Updating data...</span>
 </div>
 
 <!-- ================= ANTI-SCAM CONTROLS ================= -->
+<!-- IDs must match app.js: hidePumpBtn, gradOnlyBtn, gradAlertBtn -->
 <div class="scam-bar">
   <span id="scamStats">Loading... We hide pump.fun coins because 98% rug.</span>
   <div class="scam-btns">
@@ -43,6 +49,7 @@
 </div>
 
 <!-- ================= SNIPER FEED ================= -->
+<!-- Filled by loadSniper() in app.js -> #sniperScroll, #sniperCount -->
 <div class="sniper-bar">
   <b>⚡ SNIPER FEED - Less than 5 MIN OLD</b>
   <span id="sniperCount">Scanning...</span>
@@ -50,6 +57,7 @@
 </div>
 
 <!-- ================= TELEGRAM ================= -->
+<!-- saveTelegram() in app.js reads #tgChatIdInput -->
 <div class="tg-bar">
   <b>📲 TELEGRAM PUSH ALERTS</b>
   <p>Get alerts even when app is closed. Enter Chat ID from @userinfobot.</p>
@@ -61,12 +69,14 @@
 </div>
 
 <!-- ================= BOOSTS ================= -->
+<!-- Filled by loadBoosts() in app.js -> #boostScroll -->
 <div class="boost-bar">
   <b>🔥 TRENDING BOOSTS</b>
   <div id="boostScroll">Loading boosts...</div>
 </div>
 
 <!-- ================= PORTFOLIO BAR ================= -->
+<!-- Updated by updatePortfolioBar() -> #portfolioValue, #portfolioPnL -->
 <div class="portfolio-bar">
   <div>
     <b id="portfolioValue">$0.00</b><br>
@@ -80,6 +90,7 @@
 </div>
 
 <!-- ================= WHALE TRACKER ================= -->
+<!-- Updated by updateWhaleSummary() -> #whaleSummary -->
 <div class="whale-bar">
   <b>🐋 WHALE TRACKER</b>
   <span id="whaleSummary">Scanning...</span>
@@ -87,6 +98,8 @@
 </div>
 
 <!-- ================= TABS ================= -->
+<!-- data-tab values MUST match currentTabState in app.js -->
+<!-- mining tab -> render() calls renderMining() in app.js -->
 <div class="controls">
   <div class="tabs" id="tabsBar">
     <button class="active" data-tab="new">New</button>
@@ -117,6 +130,7 @@
 </div>
 
 <!-- ================= FILTERS ================= -->
+<!-- All IDs are read by getFiltered() in app.js -->
 <div class="filters">
   <label>Min Liquidity $<input type="number" id="minLiqInput" value="0"></label>
   <label>Min Volume $<input type="number" id="minVolInput" value="0"></label>
@@ -134,16 +148,26 @@
 </div>
 
 <!-- ================= COIN GRID ================= -->
+<!-- Filled by render() in app.js - coin cards, mining cards, alerts -->
 <div id="grid" class="grid"></div>
 <div id="emptyBox" class="empty" style="display:none">No coins found.</div>
 
 <!-- ================= MODAL / POPUP ================= -->
+<!-- Filled by openDetail() / openPortfolio() in app.js -->
+<!-- Real Chart lives here: #chartCanvas + #chartStatus, drawn by loadRealChart() -->
 <div id="modalBox">
   <div class="sheet">
     <button class="close" onclick="closeModal()">X</button>
     <div id="detailBox"></div>
   </div>
 </div>
+
+<!-- ================= FOOTER ================= -->
+<footer style="text-align:center;padding:20px 12px 40px;color:#9aa4b2;font-size:11px;line-height:1.6">
+  <p>Coin Hunter Pro - For research only. Not financial advice.<br>
+  Crypto is high risk. Never invest more than you can afford to lose.<br>
+  Mining calculator is an estimate only. Real earnings depend on difficulty, pool luck and electricity cost.</p>
+</footer>
 
 <script src="/js/app.js"></script>
 </body>
